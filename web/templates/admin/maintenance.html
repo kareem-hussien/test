@@ -1,0 +1,452 @@
+{% extends 'admin/layout.html' %}
+
+{% block title %}System Maintenance{% endblock %}
+
+{% block breadcrumb %}
+<li class="breadcrumb-item"><a href="{{ url_for('admin.dashboard') }}">Dashboard</a></li>
+<li class="breadcrumb-item active" aria-current="page">System Maintenance</li>
+{% endblock %}
+
+{% block content %}
+<!-- Page Header -->
+{% with 
+    title="System Maintenance",
+    subtitle="Manage system maintenance settings and operations",
+    show_buttons=false
+%}
+    {% include 'admin/components/admin-page-header.html' %}
+{% endwith %}
+
+<!-- System Status Overview -->
+<div class="row mb-4">
+    <div class="col-lg-6 mb-4">
+        <!-- System Status Card -->
+        <div class="dashboard-card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">System Status</h5>
+                <span class="badge {% if system_stats.maintenance_mode %}bg-warning{% else %}bg-success{% endif %}">
+                    {% if system_stats.maintenance_mode %}Maintenance Mode{% else %}Online{% endif %}
+                </span>
+            </div>
+            <div class="card-body">
+                <div class="d-flex align-items-center mb-4">
+                    <div class="me-3">
+                        <div class="d-flex align-items-center justify-content-center rounded-circle 
+                            {% if system_stats.status == 'Healthy' %}bg-success-light{% elif system_stats.status == 'Warning' %}bg-warning-light{% else %}bg-danger-light{% endif %}" 
+                            style="width: 64px; height: 64px;">
+                            <i class="bi bi-hdd 
+                                {% if system_stats.status == 'Healthy' %}text-success{% elif system_stats.status == 'Warning' %}text-warning{% else %}text-danger{% endif %}" 
+                                style="font-size: 32px;"></i>
+                        </div>
+                    </div>
+                    <div>
+                        <h5 class="mb-1">{{ system_stats.status }}</h5>
+                        <p class="mb-0 text-muted">Server uptime: <strong>{{ system_stats.uptime }}</strong></p>
+                    </div>
+                </div>
+                
+                <div class="row mb-4">
+                    <div class="col-md-4">
+                        <h6 class="mb-2">Memory Usage</h6>
+                        <div class="progress mb-2" style="height: 10px;">
+                            <div class="progress-bar 
+                                {% if system_stats.memory_usage < 70 %}bg-success{% elif system_stats.memory_usage < 90 %}bg-warning{% else %}bg-danger{% endif %}" 
+                                role="progressbar" style="width: {{ system_stats.memory_usage }}%;" 
+                                aria-valuenow="{{ system_stats.memory_usage }}" aria-valuemin="0" aria-valuemax="100"></div>
+                        </div>
+                        <p class="mb-0 small text-muted">{{ system_stats.memory_usage }}% used</p>
+                    </div>
+                    <div class="col-md-4">
+                        <h6 class="mb-2">CPU Usage</h6>
+                        <div class="progress mb-2" style="height: 10px;">
+                            <div class="progress-bar 
+                                {% if system_stats.cpu_usage < 70 %}bg-success{% elif system_stats.cpu_usage < 90 %}bg-warning{% else %}bg-danger{% endif %}" 
+                                role="progressbar" style="width: {{ system_stats.cpu_usage }}%;" 
+                                aria-valuenow="{{ system_stats.cpu_usage }}" aria-valuemin="0" aria-valuemax="100"></div>
+                        </div>
+                        <p class="mb-0 small text-muted">{{ system_stats.cpu_usage }}% used</p>
+                    </div>
+                    <div class="col-md-4">
+                        <h6 class="mb-2">Disk Usage</h6>
+                        <div class="progress mb-2" style="height: 10px;">
+                            <div class="progress-bar 
+                                {% if system_stats.disk_usage < 70 %}bg-success{% elif system_stats.disk_usage < 90 %}bg-warning{% else %}bg-danger{% endif %}" 
+                                role="progressbar" style="width: {{ system_stats.disk_usage }}%;" 
+                                aria-valuenow="{{ system_stats.disk_usage }}" aria-valuemin="0" aria-valuemax="100"></div>
+                        </div>
+                        <p class="mb-0 small text-muted">{{ system_stats.disk_usage }}% used</p>
+                    </div>
+                </div>
+                
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <p class="mb-0">Active connections: <strong>{{ system_stats.active_connections }}</strong></p>
+                    </div>
+                    <button id="refreshStatsBtn" class="btn btn-sm btn-outline-primary">
+                        <i class="bi bi-arrow-clockwise me-1"></i> Refresh Stats
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-lg-6 mb-4">
+        <!-- Maintenance Mode Card -->
+        <div class="dashboard-card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">Maintenance Mode</h5>
+                {% if system_stats.maintenance_mode %}
+                <span class="badge bg-warning">Active</span>
+                {% else %}
+                <span class="badge bg-success">Inactive</span>
+                {% endif %}
+            </div>
+            <div class="card-body">
+                {% if system_stats.maintenance_mode %}
+                <div class="alert alert-warning">
+                    <i class="bi bi-exclamation-triangle-fill me-2"></i>
+                    <strong>Active:</strong> The site is currently in maintenance mode. Only administrators can access it.
+                    {% if system_stats.maintenance_until %}
+                    <div class="mt-2">
+                        <strong>End Time:</strong> {{ system_stats.maintenance_until }}
+                    </div>
+                    {% endif %}
+                </div>
+                {% else %}
+                <div class="alert alert-info">
+                    <i class="bi bi-info-circle-fill me-2"></i>
+                    <strong>Note:</strong> Enabling maintenance mode will make the site inaccessible to all users except administrators.
+                </div>
+                {% endif %}
+                
+                <!-- Fixed Form with Proper Label Associations -->
+                <form id="maintenanceForm" action="{{ url_for('admin.update_maintenance') }}" method="post">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    
+                    <div class="mb-3">
+                        <label class="form-label" for="maintenanceSwitch">Maintenance Status</label>
+                        <div class="form-check form-switch">
+                            <input class="form-check-input" type="checkbox" id="maintenanceSwitch" name="enabled" {% if system_stats.maintenance_mode %}checked{% endif %}>
+                            <label class="form-check-label" for="maintenanceSwitch">
+                                Enable Maintenance Mode
+                            </label>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="maintenanceMessage" class="form-label">Maintenance Message</label>
+                        <textarea class="form-control" id="maintenanceMessage" name="message" rows="3">{{ system_stats.maintenance_message }}</textarea>
+                        <div class="form-text">This message will be displayed to users during maintenance.</div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="maintenanceDuration" class="form-label">Expected Duration</label>
+                        <select class="form-select" id="maintenanceDuration" name="duration">
+                            <option value="30min">30 minutes</option>
+                            <option value="1hour">1 hour</option>
+                            <option value="2hours">2 hours</option>
+                            <option value="4hours">4 hours</option>
+                            <option value="indefinite" selected>Indefinite</option>
+                        </select>
+                    </div>
+                    
+                    <button type="submit" class="btn {% if system_stats.maintenance_mode %}btn-danger{% else %}btn-warning{% endif %}" id="saveMaintenanceBtn">
+                        <i class="bi {% if system_stats.maintenance_mode %}bi-toggle-off{% else %}bi-toggle-on{% endif %} me-1"></i> 
+                        {% if system_stats.maintenance_mode %}Disable Maintenance Mode{% else %}Enable Maintenance Mode{% endif %}
+                    </button>
+                </form>
+                
+                {% if system_stats.maintenance_mode %}
+                <div class="mt-4">
+                    <h6>Preview Maintenance Page</h6>
+                    <p class="text-muted">This is how the maintenance page appears to regular users:</p>
+                    <div class="border rounded p-3">
+                        <div class="text-center py-3">
+                            <i class="bi bi-tools text-warning" style="font-size: 3rem;"></i>
+                            <h5 class="mt-3">We're Under Maintenance</h5>
+                            <p class="mb-0">{{ system_stats.maintenance_message }}</p>
+                            {% if system_stats.maintenance_until %}
+                            <div class="mt-2 text-primary">
+                                <small><strong>Scheduled to end at:</strong> {{ system_stats.maintenance_until }}</small>
+                            </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Database Statistics -->
+<div class="dashboard-card mb-4">
+    <div class="card-header">
+        <h5 class="mb-0">Database Statistics</h5>
+    </div>
+    <div class="card-body">
+        <div class="row">
+            <div class="col-md-6">
+                <table class="table">
+                    <tbody>
+                        <tr>
+                            <th width="40%">Total Collections</th>
+                            <td>{{ db_stats.total_collections }}</td>
+                        </tr>
+                        <tr>
+                            <th>Total Documents</th>
+                            <td>{{ db_stats.total_documents }}</td>
+                        </tr>
+                        <tr>
+                            <th>Total Size</th>
+                            <td>{{ db_stats.total_size }}</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+            <div class="col-md-6">
+                <table class="table">
+                    <tbody>
+                        <tr>
+                            <th width="40%">Average Document Size</th>
+                            <td>{{ db_stats.avg_document_size }}</td>
+                        </tr>
+                        <tr>
+                            <th>Indexes</th>
+                            <td>{{ db_stats.indexes }}</td>
+                        </tr>
+                        <tr>
+                            <th>Indexes Size</th>
+                            <td>{{ db_stats.indexes_size }}</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Recent Maintenance Logs -->
+<div class="dashboard-card">
+    <div class="card-header">
+        <h5 class="mb-0">Maintenance Activity Log</h5>
+    </div>
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table table-striped">
+                <thead>
+                    <tr>
+                        <th>Timestamp</th>
+                        <th>Level</th>
+                        <th>Action</th>
+                        <th>Details</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% if maintenance_logs and maintenance_logs|length > 0 %}
+                        {% for log in maintenance_logs %}
+                        <tr>
+                            <td>{{ log.timestamp }}</td>
+                            <td>
+                                <span class="badge 
+                                    {% if log.level == 'INFO' %}bg-info{% elif log.level == 'WARNING' %}bg-warning{% else %}bg-danger{% endif %}">
+                                    {{ log.level }}
+                                </span>
+                            </td>
+                            <td>{{ log.action }}</td>
+                            <td>{{ log.details }}</td>
+                        </tr>
+                        {% endfor %}
+                    {% else %}
+                        <tr>
+                            <td colspan="4" class="text-center">No maintenance logs found</td>
+                        </tr>
+                    {% endif %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block modals %}
+<!-- System Maintenance Report Modal -->
+<div class="modal fade" id="reportModal" tabindex="-1" aria-labelledby="reportModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="reportModalLabel">Generate System Report</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <form id="generateReportForm" action="{{ url_for('admin.generate_report') }}" method="post">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    
+                    <div class="mb-3">
+                        <label for="reportType" class="form-label">Report Type</label>
+                        <select class="form-select" id="reportType" name="report_type">
+                            <option value="system" selected>System Performance</option>
+                            <option value="maintenance">Maintenance Log</option>
+                            <option value="database">Database Status</option>
+                        </select>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="dateRange" class="form-label">Date Range</label>
+                        <select class="form-select" id="dateRange" name="date_range">
+                            <option value="today">Today</option>
+                            <option value="yesterday">Yesterday</option>
+                            <option value="last7days" selected>Last 7 Days</option>
+                            <option value="last30days">Last 30 Days</option>
+                            <option value="thisMonth">This Month</option>
+                            <option value="lastMonth">Last Month</option>
+                        </select>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="reportFormat" class="form-label">Format</label>
+                        <select class="form-select" id="reportFormat" name="report_format">
+                            <option value="pdf" selected>PDF</option>
+                            <option value="csv">CSV</option>
+                            <option value="excel">Excel</option>
+                        </select>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="submit" form="generateReportForm" class="btn btn-primary">Generate Report</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+/**
+ * Enhanced JavaScript for handling the maintenance form submission
+ */
+ document.addEventListener('DOMContentLoaded', function() {
+    // Get the maintenance form
+    const maintenanceForm = document.getElementById('maintenanceForm');
+    
+    if (maintenanceForm) {
+        // Handle form submission
+        maintenanceForm.addEventListener('submit', function(event) {
+            // Stop the default form submission
+            event.preventDefault();
+            
+            // Update button state to show loading
+            const saveButton = document.getElementById('saveMaintenanceBtn');
+            if (saveButton) {
+                const originalButtonHtml = saveButton.innerHTML;
+                saveButton.disabled = true;
+                saveButton.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Saving...';
+            }
+            
+            // Create a FormData object
+            const formData = new FormData(maintenanceForm);
+            
+            // Fix checkbox value if unchecked (not included in FormData)
+            if (!formData.has('enabled')) {
+                formData.append('enabled', 'false');
+            }
+            
+            // Log the form data for debugging (in development)
+            console.log('Form data:', Object.fromEntries(formData.entries()));
+            
+            // Send the form data using fetch
+            fetch(maintenanceForm.action, {
+                method: 'POST',
+                body: formData,
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest'
+                }
+            })
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error('Network response was not ok');
+                }
+                return response.text();
+            })
+            .then(html => {
+                // Successful submission, reload the page
+                window.location.reload();
+            })
+            .catch(error => {
+                console.error('Error submitting form:', error);
+                
+                // Reset button state
+                if (saveButton) {
+                    saveButton.disabled = false;
+                    saveButton.innerHTML = originalButtonHtml;
+                }
+                
+                // Show error message
+                alert('Failed to update maintenance settings. Please try again.');
+            });
+        });
+    }
+    
+    // Display maintenance duration based on selected option
+    const maintenanceDuration = document.getElementById('maintenanceDuration');
+    if (maintenanceDuration) {
+        {% if system_stats.maintenance_until %}
+            // If there's a specific end time, try to guess the duration
+            const now = new Date();
+            const endTime = new Date("{{ system_stats.maintenance_until }}");
+            const diffHours = (endTime - now) / (1000 * 60 * 60);
+            
+            if (diffHours <= 0.5) {
+                maintenanceDuration.value = '30min';
+            } else if (diffHours <= 1) {
+                maintenanceDuration.value = '1hour';
+            } else if (diffHours <= 2) {
+                maintenanceDuration.value = '2hours';
+            } else if (diffHours <= 4) {
+                maintenanceDuration.value = '4hours';
+            } else {
+                maintenanceDuration.value = 'indefinite';
+            }
+        {% else %}
+            maintenanceDuration.value = 'indefinite';
+        {% endif %}
+    }
+    
+    // Refresh stats button
+    const refreshStatsBtn = document.getElementById('refreshStatsBtn');
+    if (refreshStatsBtn) {
+        refreshStatsBtn.addEventListener('click', function() {
+            this.disabled = true;
+            this.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Refreshing...';
+            
+            // Make AJAX call to refresh stats
+            fetch('{{ url_for("admin.admin_refresh_stats") }}')
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        window.location.reload();
+                    } else {
+                        alert('Failed to refresh stats');
+                        this.disabled = false;
+                        this.innerHTML = '<i class="bi bi-arrow-clockwise me-1"></i> Refresh Stats';
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    alert('An error occurred while refreshing stats');
+                    this.disabled = false;
+                    this.innerHTML = '<i class="bi bi-arrow-clockwise me-1"></i> Refresh Stats';
+                });
+        });
+    }
+    
+    // Initialize tooltips
+    var tooltipTriggerList = [].slice.call(document.querySelectorAll('[title]'));
+    var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
+        return new bootstrap.Tooltip(tooltipTriggerEl);
+    });
+});
+</script>
+{% endblock %}

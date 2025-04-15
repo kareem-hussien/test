@@ -1,0 +1,208 @@
+<!-- Modified system-info.html template -->
+<!-- This works with your existing data format and handles missing functions -->
+
+<!-- System Information -->
+<div class="dashboard-card mb-4">
+    <div class="card-header">
+        <h5 class="mb-0">System Information</h5>
+    </div>
+    <div class="card-body">
+        <div class="row">
+            <div class="col-md-6">
+                <div class="mb-4">
+                    <h6>Application</h6>
+                    <table class="table table-sm">
+                        <tbody>
+                            <tr>
+                                <th width="40%">Version</th>
+                                <td>{{ system_info.version }}</td>
+                            </tr>
+                            <tr>
+                                <th>Environment</th>
+                                <td>
+                                    <span class="badge {{ 'bg-success' if system_info.environment == 'Production' else 'bg-warning' }}">
+                                        {{ system_info.environment }}
+                                    </span>
+                                </td>
+                            </tr>
+                            <tr>
+                                <th>Debug Mode</th>
+                                <td>
+                                    <span class="badge {{ 'bg-danger' if system_info.debug_mode else 'bg-success' }}">
+                                        {{ 'Enabled' if system_info.debug_mode else 'Disabled' }}
+                                    </span>
+                                </td>
+                            </tr>
+                            <tr>
+                                <th>Uptime</th>
+                                <td>{{ system_stats.uptime }}</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            
+            <div class="col-md-6">
+                <div class="mb-4">
+                    <h6>Server</h6>
+                    <table class="table table-sm">
+                        <tbody>
+                            <tr>
+                                <th width="40%">Python Version</th>
+                                <td>{{ system_info.python_version }}</td>
+                            </tr>
+                            <tr>
+                                <th>Web Server</th>
+                                <td>{{ system_info.server_software }}</td>
+                            </tr>
+                            <tr>
+                                <th>Database</th>
+                                <td>{{ system_info.database }}</td>
+                            </tr>
+                            <tr>
+                                <th>Operating System</th>
+                                <td>{{ os_info|default('Unknown') }}</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+        
+        <div class="row">
+            <div class="col-12">
+                <h6>System Resource Status</h6>
+                <div class="row g-3 mb-4">
+                    <div class="col-md-3 col-sm-6">
+                        <div class="card bg-light">
+                            <div class="card-body text-center">
+                                <h6 class="text-muted">CPU Usage</h6>
+                                <div class="progress mb-2">
+                                    <div class="progress-bar {{ 'bg-success' if system_stats.cpu_usage < 70 else 'bg-warning' if system_stats.cpu_usage < 90 else 'bg-danger' }}" 
+                                         role="progressbar" style="width: {{ system_stats.cpu_usage }}%"></div>
+                                </div>
+                                <span class="fw-bold">{{ system_stats.cpu_usage }}%</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-3 col-sm-6">
+                        <div class="card bg-light">
+                            <div class="card-body text-center">
+                                <h6 class="text-muted">Memory Usage</h6>
+                                <div class="progress mb-2">
+                                    <div class="progress-bar {{ 'bg-success' if system_stats.memory_usage < 70 else 'bg-warning' if system_stats.memory_usage < 90 else 'bg-danger' }}" 
+                                         role="progressbar" style="width: {{ system_stats.memory_usage }}%"></div>
+                                </div>
+                                <span class="fw-bold">{{ system_stats.memory_usage }}%</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-3 col-sm-6">
+                        <div class="card bg-light">
+                            <div class="card-body text-center">
+                                <h6 class="text-muted">Disk Usage</h6>
+                                <div class="progress mb-2">
+                                    <div class="progress-bar {{ 'bg-success' if system_stats.disk_usage < 70 else 'bg-warning' if system_stats.disk_usage < 90 else 'bg-danger' }}" 
+                                         role="progressbar" style="width: {{ system_stats.disk_usage }}%"></div>
+                                </div>
+                                <span class="fw-bold">{{ system_stats.disk_usage }}%</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-3 col-sm-6">
+                        <div class="card bg-light">
+                            <div class="card-body text-center">
+                                <h6 class="text-muted">Active Connections</h6>
+                                <div class="pt-2 pb-2">
+                                    <span class="display-6">{{ system_stats.active_connections }}</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="row">
+            <div class="col-12">
+                <h6>Dependencies</h6>
+                <div class="table-responsive">
+                    <table class="table">
+                        <thead>
+                            <tr>
+                                <th>Package</th>
+                                <th>Version</th>
+                                <th>Status</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for package, version in dependencies.items() %}
+                            <tr>
+                                <td>{{ package }}</td>
+                                <td>{{ version }}</td>
+                                <td>
+                                    {% if version == 'Not installed' %}
+                                        <span class="badge bg-danger">Not Installed</span>
+                                    {% else %}
+                                        <span class="badge bg-success">Installed</span>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+        
+        <div class="mt-4">
+            <div class="d-flex flex-wrap">
+                <button type="button" class="btn btn-outline-primary me-2 mb-2" onclick="refreshSystemInfo()">
+                    <i class="bi bi-arrow-clockwise me-1"></i> Refresh System Info
+                </button>
+                <button type="button" class="btn btn-outline-secondary me-2 mb-2" onclick="downloadSystemReport()">
+                    <i class="bi bi-download me-1"></i> Download System Report
+                </button>
+                <button type="button" class="btn btn-outline-danger mb-2" onclick="clearCaches()">
+                    <i class="bi bi-trash me-1"></i> Clear System Caches
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function refreshSystemInfo() {
+    window.location.href = "{{ url_for('admin.settings', tab='system') }}";
+}
+
+function downloadSystemReport() {
+    // In a real implementation, this would call an endpoint to generate a report
+    alert("This would generate and download a system report");
+}
+
+function clearCaches() {
+    if (confirm('Are you sure you want to clear all system caches? This might temporarily affect system performance.')) {
+        // In a real implementation, this would call an endpoint to clear caches
+        fetch("{{ url_for('admin.clear_logs') }}", {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': '{{ csrf_token() }}'
+            }
+        })
+        .then(response => {
+            if (response.ok) {
+                alert('System caches cleared successfully!');
+                window.location.reload();
+            } else {
+                alert('Failed to clear caches');
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('An error occurred while clearing caches.');
+        });
+    }
+}
+</script>

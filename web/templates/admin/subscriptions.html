@@ -1,0 +1,471 @@
+{% extends 'admin/layout.html' %}
+
+{% block title %}Subscription Plans{% endblock %}
+
+{% block breadcrumb %}
+<li class="breadcrumb-item"><a href="{{ url_for('admin.dashboard') }}">Dashboard</a></li>
+<li class="breadcrumb-item active" aria-current="page">Subscription Plans</li>
+<link rel="stylesheet" href="{{ url_for('static', filename='css/subscription.css') }}">
+
+{% endblock %}
+
+{% block content %}
+<!-- Page Header -->
+{% with 
+    title="Subscription Plans",
+    subtitle="Manage subscription plans and pricing",
+    show_buttons=true,
+    primary_button_text="Create New Plan",
+    primary_button_icon="plus-lg",
+    primary_button_url=url_for('admin.create_plan')
+%}
+    {% include 'admin/components/admin-page-header.html' %}
+{% endwith %}
+
+<!-- Subscription Plan Metrics -->
+<div class="row plan-metrics mb-4">
+    <div class="col-xl-3 col-md-6 mb-4">
+        <div class="card border-0 shadow-sm">
+            <div class="card-body text-center p-4">
+                <div class="metric-icon text-primary">
+                    <i class="bi bi-people"></i>
+                </div>
+                <div class="metric-value">{{ plans|sum(attribute='users') }}</div>
+                <div class="text-muted">Active Subscribers</div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-xl-3 col-md-6 mb-4">
+        <div class="card border-0 shadow-sm">
+            <div class="card-body text-center p-4">
+                <div class="metric-icon text-success">
+                    <i class="bi bi-currency-dollar"></i>
+                </div>
+                <div class="metric-value">${{ (plans|sum(attribute='revenue')|int) }}</div>
+                <div class="text-muted">Monthly Revenue</div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-xl-3 col-md-6 mb-4">
+        <div class="card border-0 shadow-sm">
+            <div class="card-body text-center p-4">
+                <div class="metric-icon text-info">
+                    <i class="bi bi-clipboard-data"></i>
+                </div>
+                <div class="metric-value">{{ plans|length }}</div>
+                <div class="text-muted">Total Plans</div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-xl-3 col-md-6 mb-4">
+        <div class="card border-0 shadow-sm">
+            <div class="card-body text-center p-4">
+                <div class="metric-icon text-primary">
+                    <i class="bi bi-graph-up-arrow"></i>
+                </div>
+                <div class="metric-value">
+                    {% if plans|sum(attribute='users') > 0 %}
+                        ${{ ((plans|sum(attribute='revenue') / plans|sum(attribute='users'))|round(2)) }}
+                    {% else %}
+                        $0
+                    {% endif %}
+                </div>
+                <div class="text-muted">Avg. Revenue/User</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Subscription Plans -->
+{% if plans and plans|length > 0 %}
+    <!-- Plans as Cards -->
+    <div class="row mb-5">
+        {% for plan in plans %}
+        <div class="col-xl-4 col-md-6 mb-4">
+            <div class="card plan-card shadow-sm h-100">
+                <!-- Popular tag for the plan with most users -->
+                {% if plan.users == plans|max(attribute='users') and plan.users > 0 %}
+                <div class="plan-tag">
+                    <span class="tag-popular">Most Popular</span>
+                </div>
+                {% endif %}
+                
+                <!-- Plan actions -->
+                <div class="plan-actions">
+                    <div class="btn-group">
+                        <a href="{{ url_for('admin.edit_plan', plan_id=plan._id) }}" class="btn btn-sm btn-outline-primary">
+                            <i class="bi bi-pencil"></i>
+                        </a>
+                        <button type="button" class="btn btn-sm btn-outline-danger" 
+                                data-bs-toggle="modal" data-bs-target="#deletePlanModal" 
+                                data-plan-id="{{ plan._id }}" data-plan-name="{{ plan.name }}">
+                            <i class="bi bi-trash"></i>
+                        </button>
+                    </div>
+                </div>
+                
+                <!-- Plan header -->
+                <div class="plan-header bg-primary bg-opacity-10">
+                    <h4 class="mb-2">{{ plan.name }}</h4>
+                    <div class="plan-price text-primary">${{ plan.price }}</div>
+                    <div class="text-muted mb-0">per month</div>
+                </div>
+                
+                <div class="card-body">
+                    <!-- Plan description -->
+                    <p class="card-text">{{ plan.description|default('No description available.') }}</p>
+                    
+                    <!-- Plan features -->
+                    <ul class="list-unstyled">
+                        <li class="plan-feature">
+                            <div class="feature-icon bg-primary bg-opacity-10 text-primary">
+                                <i class="bi bi-hdd-stack"></i>
+                            </div>
+                            <span>{{ plan.features.maxVillages }} villages</span>
+                        </li>
+                        <li class="plan-feature">
+                            <div class="feature-icon bg-primary bg-opacity-10 text-primary">
+                                <i class="bi bi-cpu"></i>
+                            </div>
+                            <span>{{ plan.features.maxTasks }} concurrent tasks</span>
+                        </li>
+                        <li class="plan-feature">
+                            {% if plan.features.autoFarm %}
+                            <div class="feature-icon bg-success bg-opacity-10 text-success">
+                                <i class="bi bi-check-lg"></i>
+                            </div>
+                            <span>Auto-Farm feature</span>
+                            {% else %}
+                            <div class="feature-icon bg-danger bg-opacity-10 text-danger">
+                                <i class="bi bi-x-lg"></i>
+                            </div>
+                            <span class="text-muted">No Auto-Farm</span>
+                            {% endif %}
+                        </li>
+                        <li class="plan-feature">
+                            {% if plan.features.trainer %}
+                            <div class="feature-icon bg-success bg-opacity-10 text-success">
+                                <i class="bi bi-check-lg"></i>
+                            </div>
+                            <span>Troop Training</span>
+                            {% else %}
+                            <div class="feature-icon bg-danger bg-opacity-10 text-danger">
+                                <i class="bi bi-x-lg"></i>
+                            </div>
+                            <span class="text-muted">No Troop Training</span>
+                            {% endif %}
+                        </li>
+                        <li class="plan-feature">
+                            {% if plan.features.notification %}
+                            <div class="feature-icon bg-success bg-opacity-10 text-success">
+                                <i class="bi bi-check-lg"></i>
+                            </div>
+                            <span>Notifications</span>
+                            {% else %}
+                            <div class="feature-icon bg-danger bg-opacity-10 text-danger">
+                                <i class="bi bi-x-lg"></i>
+                            </div>
+                            <span class="text-muted">No Notifications</span>
+                            {% endif %}
+                        </li>
+                        <li class="plan-feature">
+                            {% if plan.features.advanced %}
+                            <div class="feature-icon bg-success bg-opacity-10 text-success">
+                                <i class="bi bi-check-lg"></i>
+                            </div>
+                            <span>Advanced Features</span>
+                            {% else %}
+                            <div class="feature-icon bg-danger bg-opacity-10 text-danger">
+                                <i class="bi bi-x-lg"></i>
+                            </div>
+                            <span class="text-muted">No Advanced Features</span>
+                            {% endif %}
+                        </li>
+                    </ul>
+                    
+                    <!-- Plan stats -->
+                    <div class="plan-stats">
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                            <span>Active Users</span>
+                            <span class="badge bg-primary">{{ plan.users }}</span>
+                        </div>
+                        <div class="progress mb-3">
+                            {% set percentage = (plan.users / plans|sum(attribute='users') * 100) if plans|sum(attribute='users') > 0 else 0 %}
+                            <div class="progress-bar bg-primary" role="progressbar" 
+                                 style="width: {{ percentage|round }}%;" 
+                                 aria-valuenow="{{ percentage|round }}" aria-valuemin="0" aria-valuemax="100"></div>
+                        </div>
+                        
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                            <span>Monthly Revenue</span>
+                            <span class="badge bg-success">${{ plan.revenue }}</span>
+                        </div>
+                        <div class="progress">
+                            {% set rev_percentage = (plan.revenue / plans|sum(attribute='revenue') * 100) if plans|sum(attribute='revenue') > 0 else 0 %}
+                            <div class="progress-bar bg-success" role="progressbar" 
+                                 style="width: {{ rev_percentage|round }}%;" 
+                                 aria-valuenow="{{ rev_percentage|round }}" aria-valuemin="0" aria-valuemax="100"></div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="card-footer bg-transparent border-0">
+                    <a href="{{ url_for('admin.edit_plan', plan_id=plan._id) }}" class="btn btn-outline-primary w-100">
+                        <i class="bi bi-pencil me-1"></i> Edit Plan
+                    </a>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    
+    <!-- Plan Comparison Table -->
+    <div class="dashboard-card mb-4">
+        <div class="card-header">
+            <h5 class="mb-0">Plan Comparison</h5>
+        </div>
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-hover plan-comparison-table">
+                    <thead>
+                        <tr>
+                            <th>Plan Name</th>
+                            <th class="text-center">Price</th>
+                            <th class="text-center">Users</th>
+                            <th class="text-center">Revenue</th>
+                            <th class="text-center">Max Villages</th>
+                            <th class="text-center">Max Tasks</th>
+                            <th class="text-center">Auto-Farm</th>
+                            <th class="text-center">Troop Training</th>
+                            <th class="text-center">Advanced Features</th>
+                            <th class="text-end">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for plan in plans %}
+                        <tr>
+                            <td class="fw-medium">
+                                {{ plan.name }}
+                                {% if plan.users == plans|max(attribute='users') and plan.users > 0 %}
+                                <span class="badge bg-warning ms-2">Popular</span>
+                                {% endif %}
+                            </td>
+                            <td class="text-center">${{ plan.price }}</td>
+                            <td class="text-center">{{ plan.users }}</td>
+                            <td class="text-center">${{ plan.revenue }}</td>
+                            <td class="text-center">{{ plan.features.maxVillages }}</td>
+                            <td class="text-center">{{ plan.features.maxTasks }}</td>
+                            <td class="text-center">
+                                {% if plan.features.autoFarm %}
+                                <i class="bi bi-check-circle-fill text-success"></i>
+                                {% else %}
+                                <i class="bi bi-x-circle-fill text-muted"></i>
+                                {% endif %}
+                            </td>
+                            <td class="text-center">
+                                {% if plan.features.trainer %}
+                                <i class="bi bi-check-circle-fill text-success"></i>
+                                {% else %}
+                                <i class="bi bi-x-circle-fill text-muted"></i>
+                                {% endif %}
+                            </td>
+                            <td class="text-center">
+                                {% if plan.features.advanced %}
+                                <i class="bi bi-check-circle-fill text-success"></i>
+                                {% else %}
+                                <i class="bi bi-x-circle-fill text-muted"></i>
+                                {% endif %}
+                            </td>
+                            <td class="text-end">
+                                <div class="btn-group">
+                                    <a href="{{ url_for('admin.edit_plan', plan_id=plan._id) }}" class="btn btn-sm btn-outline-primary">
+                                        <i class="bi bi-pencil"></i>
+                                    </a>
+                                    <button type="button" class="btn btn-sm btn-outline-danger" 
+                                            data-bs-toggle="modal" data-bs-target="#deletePlanModal" 
+                                            data-plan-id="{{ plan._id }}" data-plan-name="{{ plan.name }}">
+                                        <i class="bi bi-trash"></i>
+                                    </button>
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Revenue Distribution -->
+    <div class="dashboard-card mb-4">
+        <div class="card-header d-flex justify-content-between align-items-center">
+            <h5 class="mb-0">Revenue Distribution</h5>
+            <div class="badge bg-success">${{ plans|sum(attribute='revenue') }} Monthly</div>
+        </div>
+        <div class="card-body">
+            <div class="chart-container" style="position: relative; height: 300px;">
+                <canvas id="revenueChart"></canvas>
+            </div>
+        </div>
+    </div>
+    
+    <!-- User Distribution -->
+    <div class="dashboard-card">
+        <div class="card-header d-flex justify-content-between align-items-center">
+            <h5 class="mb-0">User Distribution</h5>
+            <div class="badge bg-primary">{{ plans|sum(attribute='users') }} Users</div>
+        </div>
+        <div class="card-body">
+            <div class="chart-container" style="position: relative; height: 300px;">
+                <canvas id="userChart"></canvas>
+            </div>
+        </div>
+    </div>
+{% else %}
+    <!-- Empty State -->
+    <div class="dashboard-card">
+        <div class="empty-state">
+            <div class="empty-state-icon">
+                <i class="bi bi-credit-card"></i>
+            </div>
+            <h4>No Subscription Plans</h4>
+            <p class="text-muted mb-4">You haven't created any subscription plans yet. Start by creating your first plan.</p>
+            <a href="{{ url_for('admin.create_plan') }}" class="btn btn-primary">
+                <i class="bi bi-plus-lg me-1"></i> Create New Plan
+            </a>
+        </div>
+    </div>
+{% endif %}
+
+{% endblock %}
+
+{% block modals %}
+<!-- Delete Plan Modal -->
+<div class="modal fade" id="deletePlanModal" tabindex="-1" aria-labelledby="deletePlanModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="deletePlanModalLabel">Delete Subscription Plan</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div class="alert alert-warning">
+                    <i class="bi bi-exclamation-triangle-fill me-2"></i>
+                    <strong>Warning:</strong> You are about to delete the subscription plan <span id="deletePlanName" class="fw-bold"></span>.
+                </div>
+                <p>This action cannot be undone. Are you sure you want to proceed?</p>
+                <p class="mb-0 mt-3"><strong>Note:</strong> You cannot delete a plan that has active subscribers. Please move subscribers to another plan first.</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <form id="deletePlanForm" method="post" action="{{ url_for('admin.delete_plan', plan_id='PLAN_ID') }}">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <button type="submit" class="btn btn-danger">Delete Plan</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Set up modal for plan deletion
+        const deletePlanModal = document.getElementById('deletePlanModal');
+        if (deletePlanModal) {
+            deletePlanModal.addEventListener('show.bs.modal', function (event) {
+                const button = event.relatedTarget;
+                const planId = button.getAttribute('data-plan-id');
+                const planName = button.getAttribute('data-plan-name');
+                
+                // Update modal content
+                document.getElementById('deletePlanName').textContent = planName;
+                
+                // Update form action
+                const form = document.getElementById('deletePlanForm');
+                form.action = form.action.replace('PLAN_ID', planId);
+            });
+        }
+        
+        {% if plans and plans|length > 0 %}
+        // Revenue distribution chart
+        const revenueCtx = document.getElementById('revenueChart').getContext('2d');
+        const revenueChart = new Chart(revenueCtx, {
+            type: 'pie',
+            data: {
+                labels: [{% for plan in plans %}'{{ plan.name }}',{% endfor %}],
+                datasets: [{
+                    data: [{% for plan in plans %}{{ plan.revenue }},{% endfor %}],
+                    backgroundColor: [
+                        'rgba(54, 162, 235, 0.7)',
+                        'rgba(255, 99, 132, 0.7)',
+                        'rgba(255, 206, 86, 0.7)',
+                        'rgba(75, 192, 192, 0.7)',
+                        'rgba(153, 102, 255, 0.7)',
+                        'rgba(255, 159, 64, 0.7)'
+                    ],
+                    borderWidth: 1
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        position: 'right',
+                    },
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                const value = context.parsed;
+                                const total = context.dataset.data.reduce((a, b) => a + b, 0);
+                                const percentage = Math.round((value / total) * 100);
+                                return `${context.label}: $${value} (${percentage}%)`;
+                            }
+                        }
+                    }
+                }
+            }
+        });
+        
+        // User distribution chart
+        const userCtx = document.getElementById('userChart').getContext('2d');
+        const userChart = new Chart(userCtx, {
+            type: 'bar',
+            data: {
+                labels: [{% for plan in plans %}'{{ plan.name }}',{% endfor %}],
+                datasets: [{
+                    label: 'Active Users',
+                    data: [{% for plan in plans %}{{ plan.users }},{% endfor %}],
+                    backgroundColor: 'rgba(58, 110, 165, 0.7)',
+                    borderColor: 'rgba(58, 110, 165, 1)',
+                    borderWidth: 1
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        ticks: {
+                            precision: 0
+                        }
+                    }
+                },
+                plugins: {
+                    legend: {
+                        display: false
+                    }
+                }
+            }
+        });
+        {% endif %}
+    });
+</script>
+{% endblock %}

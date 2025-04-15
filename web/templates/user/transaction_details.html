@@ -1,0 +1,128 @@
+{% extends 'user/layout.html' %}
+
+{% block title %}Transaction Details{% endblock %}
+
+{% block breadcrumb %}
+<li class="breadcrumb-item"><a href="{{ url_for('user.subscription') }}">Subscription</a></li>
+<li class="breadcrumb-item active" aria-current="page">Transaction Details</li>
+{% endblock %}
+
+{% block content %}
+<div class="content">
+    <!-- Page Header -->
+    {% with 
+        title="Transaction Details",
+        subtitle="View details of your transaction",
+        show_buttons=True,
+        primary_button_text="Back to Subscription",
+        primary_button_icon="arrow-left",
+        primary_button_id="backToSubscription"
+    %}
+        {% include 'user/components/page_header.html' %}
+    {% endwith %}
+    
+    <div class="row">
+        <div class="col-lg-8 mx-auto">
+            <div class="dashboard-card">
+                <div class="card-header bg-light p-3 mb-4">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <h5 class="mb-0">Transaction #{{ transaction.id }}</h5>
+                        <span class="badge 
+                            {% if transaction.status == 'completed' %}bg-success
+                            {% elif transaction.status == 'pending' %}bg-warning
+                            {% elif transaction.status == 'failed' %}bg-danger
+                            {% else %}bg-secondary{% endif %}">
+                            {{ transaction.status|capitalize }}
+                        </span>
+                    </div>
+                </div>
+                
+                <div class="row g-3 mb-4">
+                    <div class="col-md-6">
+                        <div class="detail-group">
+                            <label class="text-muted">Date</label>
+                            <div class="detail-value">{{ transaction.date }}</div>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="detail-group">
+                            <label class="text-muted">Amount</label>
+                            <div class="detail-value">${{ "%.2f"|format(transaction.amount) }}</div>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="detail-group">
+                            <label class="text-muted">Plan</label>
+                            <div class="detail-value">{{ transaction.plan }}</div>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="detail-group">
+                            <label class="text-muted">Billing Period</label>
+                            <div class="detail-value">{{ transaction.billing_period }}</div>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="detail-group">
+                            <label class="text-muted">Payment Method</label>
+                            <div class="detail-value">
+                                {% if transaction.payment_method == 'paypal' %}
+                                <i class="bi bi-paypal text-primary me-2"></i>PayPal
+                                {% else %}
+                                <i class="bi bi-credit-card text-success me-2"></i>{{ transaction.payment_method|capitalize }}
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="detail-group">
+                            <label class="text-muted">Payment ID</label>
+                            <div class="detail-value" style="word-break: break-all;">{{ transaction.payment_id }}</div>
+                        </div>
+                    </div>
+                </div>
+                
+                {% if transaction.status == 'completed' %}
+                <div class="alert alert-success mb-4">
+                    <i class="bi bi-check-circle-fill me-2"></i>
+                    This transaction was completed successfully. Your subscription was activated.
+                </div>
+                {% elif transaction.status == 'pending' %}
+                <div class="alert alert-warning mb-4">
+                    <i class="bi bi-exclamation-circle-fill me-2"></i>
+                    This transaction is still pending. Your subscription will be activated once the payment is confirmed.
+                </div>
+                {% elif transaction.status == 'failed' %}
+                <div class="alert alert-danger mb-4">
+                    <i class="bi bi-x-circle-fill me-2"></i>
+                    This transaction failed. Please try again or contact support if you believe this is an error.
+                </div>
+                {% endif %}
+                
+                <div class="d-flex justify-content-end gap-2 mt-4">
+                    <a href="{{ url_for('user.subscription') }}" class="btn btn-outline-secondary">
+                        <i class="bi bi-arrow-left me-2"></i>Back to Subscription
+                    </a>
+                    
+                    {% if transaction.status == 'completed' %}
+                    <a href="{{ url_for('user.download_receipt', transaction_id=transaction.id) }}" class="btn btn-primary">
+                        <i class="bi bi-download me-2"></i>Download Receipt
+                    </a>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Handle back to subscription button
+        document.getElementById('backToSubscription').addEventListener('click', function() {
+            window.location.href = "{{ url_for('user.subscription') }}";
+        });
+    });
+</script>
+{% endblock %}

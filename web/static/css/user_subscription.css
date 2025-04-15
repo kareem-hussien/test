@@ -1,0 +1,189 @@
+  .pricing-card {
+    transition: all 0.3s ease;
+    border-radius: 10px;
+    overflow: hidden;
+    height: 100%;
+    position: relative;
+  }
+  
+  .pricing-card.selected-plan {
+    box-shadow: 0 0 20px rgba(0, 123, 255, 0.4);
+    transform: translateY(-5px);
+  }
+  
+  .pricing-header {
+    font-size: 1.5rem;
+    font-weight: bold;
+    color: #333;
+    margin-bottom: 15px;
+    text-align: center;
+  }
+  
+  .pricing-price {
+    font-size: 2rem;
+    font-weight: bold;
+    color: #007bff;
+    text-align: center;
+    margin-bottom: 20px;
+  }
+  
+  .feature-list {
+    list-style: none;
+    padding: 0;
+    margin-bottom: 20px;
+  }
+  
+  .feature-list li {
+    padding: 8px 0;
+    display: flex;
+    align-items: center;
+  }
+  
+  .feature-available {
+    color: #28a745;
+  }
+  
+  .feature-unavailable {
+    color: #6c757d;
+    opacity: 0.6;
+  }
+  
+  .billing-toggle {
+    background-color: #f8f9fa;
+    border-radius: 30px;
+    padding: 5px;
+    display: inline-flex;
+    margin-bottom: 20px;
+  }
+  
+  .billing-option {
+    padding: 8px 16px;
+    cursor: pointer;
+    border-radius: 30px;
+    font-weight: 600;
+  }
+  
+  .billing-option.active {
+    background-color: #007bff;
+    color: white;
+  }
+  
+  .save-badge {
+    position: absolute;
+    top: 15px;
+    right: 15px;
+    background-color: #dc3545;
+    color: white;
+    padding: 4px 8px;
+    border-radius: 20px;
+    font-weight: bold;
+    font-size: 0.8rem;
+  }
+  
+  .subscription-status {
+    border-radius: 10px;
+    padding: 20px;
+  }
+  
+  .subscription-status.active {
+    border-left: 4px solid #28a745;
+  }
+  
+  .subscription-status.cancelled {
+    border-left: 4px solid #ffc107;
+  }
+  
+  .subscription-status.inactive {
+    border-left: 4px solid #6c757d;
+  }
+  
+  .status-icon {
+    width: 50px;
+    height: 50px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  
+  .status-icon i {
+    font-size: 24px;
+  }
+  
+  .subscription-detail {
+    padding: 12px;
+    background-color: #f8f9fa;
+    border-radius: 8px;
+  }
+  
+  .stats-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 15px;
+  }
+  
+  .stat-item {
+    display: flex;
+    align-items: center;
+    padding: 15px;
+    background-color: #f8f9fa;
+    border-radius: 10px;
+  }
+  
+  .stat-icon {
+    width: 45px;
+    height: 45px;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-right: 15px;
+  }
+  
+  .stat-icon i {
+    font-size: 20px;
+  }
+  
+  .stat-title {
+    font-size: 0.85rem;
+    color: #6c757d;
+    margin-bottom: 3px;
+  }
+  
+  .stat-value {
+    font-size: 1.2rem;
+    font-weight: bold;
+  }
+  
+  #loading-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.5);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 9999;
+  }
+  
+  .loading-spinner-container {
+    background-color: white;
+    padding: 30px;
+    border-radius: 10px;
+    text-align: center;
+    box-shadow: 0 0 20px rgba(0, 0, 0, 0.2);
+  }
+  
+  .loading-spinner {
+    width: 50px;
+    height: 50px;
+    margin-bottom: 15px;
+  }
+  
+  .loading-text {
+    font-size: 1.2rem;
+    font-weight: 600;
+    color: #333;
+  }

@@ -1,0 +1,52 @@
+{% extends 'user/layout.html' %}
+
+{% block title %}Villages Management{% endblock %}
+
+{% block head_extra %}
+<meta name="csrf-token" content="{{ csrf_token() }}">
+{% endblock %}
+
+{% block breadcrumb %}
+<li class="breadcrumb-item active" aria-current="page">Villages</li>
+{% endblock %}
+
+{% block content %}
+<div class="content">
+    <!-- Page Header -->
+    {% with 
+        title="Villages Management",
+        subtitle="Manage your Travian villages for automation",
+        show_buttons=True,
+        primary_button_text="Extract Villages",
+        primary_button_icon="arrow-repeat",
+        primary_button_id="extractVillages"
+    %}
+        {% include 'user/components/page_header.html' %}
+    {% endwith %}
+    
+    <!-- Villages List Section -->
+    {% include 'user/villages/villages_list.html' %}
+    
+    <!-- Villages Stats Section -->
+    {% include 'user/villages/villages_stats.html' %}
+</div>
+
+<!-- Make villages data available for JavaScript -->
+<script>
+    // Make the villages data available globally for JavaScript to use
+    window.villagesData = {{ villages|tojson|safe }};
+</script>
+<input type="hidden" id="villagesData" value="{{ villages|tojson|safe }}">
+
+<!-- Include modal components -->
+{% include 'user/villages/modals/village_details_modal.html' %}
+{% include 'user/villages/modals/edit_village_modal.html' %}
+{% include 'user/villages/modals/add_village_modal.html' %}
+{% include 'user/villages/modals/extract_villages_modal.html' %}
+{% include 'user/villages/modals/remove_village_modal.html' %}
+
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/villages.js') }}"></script>
+{% endblock %}

@@ -1,0 +1,210 @@
+/* dashboard.css */
+/* 
+ * CSS styles for the user dashboard and profile pages.
+ * This file should be placed in web/static/css/dashboard.css
+ */
+
+/* Common dashboard styles */
+.content {
+    padding: 1.5rem;
+}
+
+.dashboard-card {
+    background: #fff;
+    border-radius: 10px;
+    box-shadow: 0 2px 15px rgba(0, 0, 0, 0.05);
+    padding: 1.5rem;
+    margin-bottom: 1.5rem;
+    position: relative;
+    overflow: hidden;
+}
+
+.subscription-badge {
+    position: absolute;
+    top: 0;
+    right: 0;
+    padding: 0.25rem 1rem;
+    border-radius: 0 10px 0 10px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+}
+
+/* Profile page styles */
+.profile-avatar {
+    width: 100px;
+    height: 100px;
+    border-radius: 50%;
+    margin-bottom: 1rem;
+    object-fit: cover;
+}
+
+.password-strength {
+    margin-top: 0.5rem;
+    font-size: 0.8rem;
+}
+
+.progress {
+    height: 4px;
+    margin-top: 0.25rem;
+}
+
+/* Statistics card styles */
+.stat-card {
+    border-radius: 8px;
+    padding: 1rem;
+    margin-bottom: 1rem;
+    display: flex;
+    align-items: center;
+}
+
+.stat-icon {
+    width: 48px;
+    height: 48px;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-right: 1rem;
+    font-size: 1.5rem;
+}
+
+.stat-info {
+    flex: 1;
+}
+
+.stat-value {
+    font-size: 1.5rem;
+    font-weight: 600;
+    margin-bottom: 0;
+}
+
+.stat-label {
+    color: #6c757d;
+    margin-bottom: 0;
+    font-size: 0.85rem;
+}
+
+/* Responsive adjustments */
+@media (max-width: 767.98px) {
+    .content {
+        padding: 1rem;
+    }
+    
+    .dashboard-card {
+        padding: 1.25rem;
+    }
+}
+
+/* Color variables for status badges and cards */
+.bg-primary-light {
+    background-color: rgba(13, 110, 253, 0.1);
+    color: #0d6efd;
+}
+
+.bg-success-light {
+    background-color: rgba(25, 135, 84, 0.1);
+    color: #198754;
+}
+
+.bg-warning-light {
+    background-color: rgba(255, 193, 7, 0.1);
+    color: #ffc107;
+}
+
+.bg-danger-light {
+    background-color: rgba(220, 53, 69, 0.1);
+    color: #dc3545;
+}
+
+.bg-info-light {
+    background-color: rgba(13, 202, 240, 0.1);
+    color: #0dcaf0;
+}
+
+/* Badge styling */
+.badge {
+    padding: 0.35em 0.65em;
+    font-weight: 600;
+    font-size: 0.75em;
+}
+
+/* Task and activity status indicators */
+.status-active {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    display: inline-block;
+    background-color: #198754;
+    margin-right: 5px;
+}
+
+.status-paused {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    display: inline-block;
+    background-color: #ffc107;
+    margin-right: 5px;
+}
+
+.status-stopped {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    display: inline-block;
+    background-color: #dc3545;
+    margin-right: 5px;
+}
+
+/* Village card styling */
+.village-item {
+    display: flex;
+    align-items: center;
+    padding: 1rem;
+    border-radius: 8px;
+    background-color: #f8f9fa;
+    margin-bottom: 0.75rem;
+}
+
+.village-icon {
+    margin-right: 1rem;
+}
+
+.village-info {
+    flex: 1;
+}
+
+.village-name {
+    font-weight: 600;
+    margin-bottom: 0.25rem;
+}
+
+.village-coords {
+    font-size: 0.85rem;
+    color: #6c757d;
+}
+
+.resource-indicator {
+    display: inline-flex;
+    align-items: center;
+    margin-right: 0.75rem;
+    font-size: 0.85rem;
+}
+
+.resource-wood {
+    color: #28a745;
+}
+
+.resource-clay {
+    color: #e36209;
+}
+
+.resource-iron {
+    color: #6c757d;
+}
+
+.resource-crop {
+    color: #ffc107;
+}

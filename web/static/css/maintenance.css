@@ -1,0 +1,130 @@
+body {
+    display: flex;
+    align-items: center;
+    min-height: 100vh;
+    background-color: #f4f4f9;
+}
+.maintenance-container {
+    max-width: 600px;
+    margin: 0 auto;
+    padding: 2rem;
+}
+.card {
+    border: none;
+    border-radius: 10px;
+    box-shadow: 0 6px 15px rgba(0,0,0,0.1);
+}
+.maintenance-footer {
+    text-align: center;
+    margin-top: 2rem;
+}
+
+
+.maintenance-title {
+    font-size: 2.5rem;
+    margin-bottom: 1.5rem;
+    color: #3a6ea5;
+}
+.maintenance-message {
+    font-size: 1.2rem;
+    margin-bottom: 2rem;
+    color: #555;
+}
+.timer {
+    font-size: 1.5rem;
+    margin-bottom: 2rem;
+    color: #3a6ea5;
+}
+.admin-link {
+    margin-top: 2rem;
+    font-size: 0.9rem;
+    color: #6c757d;
+}
+
+
+.maintenance-icon {
+    font-size: 6rem;
+    color: #ff9a3c;
+    margin-bottom: 2rem;
+    animation: wrench 2.5s ease infinite;
+}
+
+.maintenance-title {
+    font-size: 2.5rem;
+    margin-bottom: 1.5rem;
+    color: #3a6ea5;
+}
+
+.maintenance-message {
+    font-size: 1.2rem;
+    margin-bottom: 2rem;
+    color: #555;
+}
+
+/* Animation for the maintenance icon */
+@keyframes wrench {
+    0% {
+        transform: rotate(-12deg);
+    }
+    8% {
+        transform: rotate(12deg);
+    }
+    10% {
+        transform: rotate(24deg);
+    }
+    18% {
+        transform: rotate(-24deg);
+    }
+    20% {
+        transform: rotate(-24deg);
+    }
+    28% {
+        transform: rotate(24deg);
+    }
+    30% {
+        transform: rotate(24deg);
+    }
+    38% {
+        transform: rotate(-24deg);
+    }
+    40% {
+        transform: rotate(-24deg);
+    }
+    48% {
+        transform: rotate(24deg);
+    }
+    50% {
+        transform: rotate(24deg);
+    }
+    58% {
+        transform: rotate(-24deg);
+    }
+    60% {
+        transform: rotate(-24deg);
+    }
+    68% {
+        transform: rotate(24deg);
+    }
+    75%, 100% {
+        transform: rotate(0deg);
+    }
+}
+
+/* Animation for the maintenance icon */
+@keyframes wrench {
+    0% { transform: rotate(-12deg); }
+    8% { transform: rotate(12deg); }
+    10% { transform: rotate(24deg); }
+    18% { transform: rotate(-24deg); }
+    20% { transform: rotate(-24deg); }
+    28% { transform: rotate(24deg); }
+    30% { transform: rotate(24deg); }
+    38% { transform: rotate(-24deg); }
+    40% { transform: rotate(-24deg); }
+    48% { transform: rotate(24deg); }
+    50% { transform: rotate(24deg); }
+    58% { transform: rotate(-24deg); }
+    60% { transform: rotate(-24deg); }
+    68% { transform: rotate(24deg); }
+    75%, 100% { transform: rotate(0deg); }
+}

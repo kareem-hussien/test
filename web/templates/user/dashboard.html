@@ -1,0 +1,222 @@
+{% extends 'user/layout.html' %}
+
+{% block title %}Dashboard{% endblock %}
+
+{% block breadcrumb %}
+<li class="breadcrumb-item active" aria-current="page">Dashboard</li>
+{% endblock %}
+
+{% block content %}
+<div class="content">
+    <!-- Welcome Message -->
+    <div class="row mb-4">
+        <div class="col-12">
+            {% with 
+                user=current_user,
+                subscription={
+                    'status': 'active',
+                    'plan': dashboard.subscription.plan,
+                    'end_date': dashboard.subscription.end_date,
+                    'max_villages': 5,
+                    'days_used': 20,
+                    'days_total': 30
+                }
+            %}
+                {% include 'user/components/welcome_card.html' %}
+            {% endwith %}
+        </div>
+    </div>
+    
+    <!-- Status Cards -->
+    <div class="row mb-4">
+        <div class="col-md-3">
+            {% with 
+                icon='buildings',
+                icon_bg='bg-primary-light',
+                title='Active Villages',
+                value=dashboard.villages|length,
+                subtitle='Max: 5 villages'
+            %}
+                {% include 'user/components/stat_card.html' %}
+            {% endwith %}
+        </div>
+        
+        <div class="col-md-3">
+            {% with 
+                icon='robot',
+                icon_bg='bg-success-light',
+                title='Auto-Farming Status',
+                value=dashboard.auto_farm.status|capitalize,
+                subtitle='Running for 3 days'
+            %}
+                {% include 'user/components/stat_card.html' %}
+            {% endwith %}
+        </div>
+        
+        <div class="col-md-3">
+            {% with 
+                icon='shield',
+                icon_bg='bg-warning-light',
+                title='Troops Trained',
+                value='450',
+                subtitle='Last 7 days'
+            %}
+                {% include 'user/components/stat_card.html' %}
+            {% endwith %}
+        </div>
+        
+        <div class="col-md-3">
+            {% with 
+                icon='clock-history',
+                icon_bg='bg-danger-light',
+                title='Next Farm Run',
+                value=dashboard.auto_farm.next_run|default('00:18:45'),
+                subtitle='Auto-Farming Enabled'
+            %}
+                {% include 'user/components/stat_card.html' %}
+            {% endwith %}
+        </div>
+    </div>
+    
+    <!-- Running Tasks and Villages -->
+    <div class="row mb-4">
+        <!-- Running Tasks -->
+        <div class="col-md-6">
+            <div class="dashboard-card">
+                <div class="d-flex justify-content-between mb-3">
+                    <h5>Running Tasks</h5>
+                    <button class="btn btn-sm btn-outline-primary">Start New Task</button>
+                </div>
+                
+                <div class="task-list">
+                    {% with 
+                        task_name='Auto-Farming',
+                        task_status='active',
+                        task_duration='3d 05h 12m',
+                        status_class='status-active'
+                    %}
+                        {% include 'user/components/task_card.html' %}
+                    {% endwith %}
+                    
+                    {% with 
+                        task_name='Troop Training',
+                        task_status='paused',
+                        task_duration='1d 12h 45m',
+                        status_class='status-paused'
+                    %}
+                        {% include 'user/components/task_card.html' %}
+                    {% endwith %}
+                </div>
+            </div>
+        </div>
+        
+        <!-- Villages -->
+        <div class="col-md-6">
+            <div class="dashboard-card">
+                <div class="d-flex justify-content-between mb-3">
+                    <h5>Your Villages</h5>
+                    <button class="btn btn-sm btn-outline-primary">Refresh Data</button>
+                </div>
+                
+                <div class="villages-list">
+                    {% for village in dashboard.villages %}
+                        {% with village=village %}
+                            {% include 'user/components/village_card.html' %}
+                        {% endwith %}
+                    {% endfor %}
+                    
+                    {% if dashboard.villages|length == 0 %}
+                    <div class="alert alert-info">
+                        <i class="bi bi-info-circle-fill me-2"></i>
+                        No villages found. Click "Refresh Data" to fetch your villages from Travian.
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Recent Activity -->
+    <div class="row">
+        <div class="col-12">
+            {% with 
+                activities=[
+                    {
+                        'timestamp': '2025-03-12 15:30:45',
+                        'activity': 'Auto-Farm',
+                        'details': 'Sent farm lists from Main Village',
+                        'status': 'Success'
+                    },
+                    {
+                        'timestamp': '2025-03-12 14:15:22',
+                        'activity': 'Troop Training',
+                        'details': 'Trained 50 Legionnaires in Main Village',
+                        'status': 'Success'
+                    },
+                    {
+                        'timestamp': '2025-03-12 12:30:10',
+                        'activity': 'Auto-Farm',
+                        'details': 'Sent farm lists from Second Village',
+                        'status': 'Success'
+                    },
+                    {
+                        'timestamp': '2025-03-12 11:05:38',
+                        'activity': 'System',
+                        'details': 'Bot started after maintenance',
+                        'status': 'Info'
+                    },
+                    {
+                        'timestamp': '2025-03-12 10:45:15',
+                        'activity': 'System',
+                        'details': 'Scheduled maintenance began',
+                        'status': 'Warning'
+                    }
+                ]
+            %}
+                {% include 'user/components/activity_log.html' %}
+            {% endwith %}
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    // Dashboard-specific scripts
+    document.addEventListener('DOMContentLoaded', function() {
+        // Initialize any dashboard-specific functionality
+        
+        // Example: Countdown timer for next farm run
+        const countdownTimer = document.getElementById('countdownTimer');
+        if (countdownTimer) {
+            // Set the initial time (could be passed from server)
+            let minutes = 18;
+            let seconds = 45;
+            
+            // Update every second
+            const timerInterval = setInterval(function() {
+                seconds--;
+                if (seconds < 0) {
+                    minutes--;
+                    seconds = 59;
+                }
+                
+                if (minutes < 0) {
+                    clearInterval(timerInterval);
+                    countdownTimer.textContent = "Any moment now...";
+                } else {
+                    countdownTimer.textContent = minutes + "m " + seconds + "s";
+                }
+            }, 1000);
+        }
+        
+        // Handle "Start New Task" button
+        const startTaskBtn = document.querySelector('.btn-outline-primary');
+        if (startTaskBtn) {
+            startTaskBtn.addEventListener('click', function() {
+                window.location.href = "{{ url_for('user.auto_farm') }}";
+            });
+        }
+    });
+</script>
+{% endblock %}

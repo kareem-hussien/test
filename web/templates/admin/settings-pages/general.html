@@ -1,0 +1,112 @@
+<!-- General Settings -->
+<div class="dashboard-card mb-4">
+    <div class="card-header">
+        <h5 class="mb-0">General Settings</h5>
+    </div>
+    <div class="card-body">
+        <form id="generalSettingsForm" action="{{ url_for('admin.settings') }}" method="post">
+            <input type="hidden" name="form_type" value="general">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            
+            <!-- Site Name -->
+            {% with 
+                field_type="text",
+                field_id="siteName",
+                field_name="siteName",
+                field_label="Site Name",
+                field_value=settings.general.site_name,
+                field_required=true,
+                field_help="The name of your site that appears in the browser title and emails."
+            %}
+                {% include 'admin/components/admin-form-field.html' %}
+            {% endwith %}
+            
+            <!-- Site Description -->
+            {% with 
+                field_type="textarea",
+                field_id="siteDescription",
+                field_name="siteDescription",
+                field_label="Site Description",
+                field_value=settings.general.site_description,
+                field_required=true,
+                field_help="A brief description of your site. Used in meta tags for SEO.",
+                field_rows=3
+            %}
+                {% include 'admin/components/admin-form-field.html' %}
+            {% endwith %}
+            
+            <!-- Timezone -->
+            {% with 
+                select_id="timezone",
+                select_name="timezone",
+                select_label="Default Timezone",
+                select_options=[
+                    {'value': 'UTC', 'text': 'UTC'},
+                    {'value': 'America/New_York', 'text': 'America/New_York'},
+                    {'value': 'Europe/London', 'text': 'Europe/London'},
+                    {'value': 'Asia/Tokyo', 'text': 'Asia/Tokyo'},
+                    {'value': 'Australia/Sydney', 'text': 'Australia/Sydney'}
+                ],
+                select_selected=settings.general.timezone,
+                select_required=true,
+                select_help="The default timezone for date and time display."
+            %}
+                {% include 'admin/components/admin-form-select.html' %}
+            {% endwith %}
+            
+            <!-- Maintenance Mode Settings -->
+            <div class="border-bottom pb-2 mb-4 mt-5">
+                <h6>Maintenance Mode</h6>
+            </div>
+            
+            <!-- Maintenance Mode -->
+            {% with 
+                checkbox_id="maintenanceMode",
+                checkbox_name="maintenanceMode",
+                checkbox_label="Enable Maintenance Mode",
+                checkbox_checked=settings.general.maintenance_mode,
+                checkbox_help="When enabled, the site will display a maintenance message to all non-admin users.",
+                checkbox_switch=true
+            %}
+                {% include 'admin/components/admin-form-checkbox.html' %}
+            {% endwith %}
+            
+            <!-- Maintenance Message -->
+            {% with 
+                field_type="textarea",
+                field_id="maintenanceMessage",
+                field_name="maintenanceMessage",
+                field_label="Maintenance Message",
+                field_value=settings.general.maintenance_message,
+                field_required=false,
+                field_help="The message to display when maintenance mode is enabled.",
+                field_rows=3
+            %}
+                {% include 'admin/components/admin-form-field.html' %}
+            {% endwith %}
+            
+            <!-- Form Buttons -->
+            <div class="mt-4 d-flex justify-content-end">
+                <button type="reset" class="btn btn-outline-secondary me-2">
+                    <i class="bi bi-arrow-counterclockwise me-1"></i> Reset
+                </button>
+                <button type="submit" class="btn btn-primary">
+                    <i class="bi bi-save me-1"></i> Save Changes
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Maintenance Mode Alert -->
+{% if settings.general.maintenance_mode %}
+    {% with 
+        alert_type="warning",
+        alert_title="Maintenance Mode Active",
+        alert_message="Your site is currently in maintenance mode and is not accessible to regular users.",
+        alert_icon="exclamation-triangle-fill",
+        dismissible=true
+    %}
+        {% include 'admin/components/admin-alert.html' %}
+    {% endwith %}
+{% endif %}

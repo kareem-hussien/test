@@ -1,0 +1,407 @@
+{% extends 'user/layout.html' %}
+
+{% block title %}Subscription Management{% endblock %}
+
+{% block breadcrumb %}
+<li class="breadcrumb-item active" aria-current="page">Subscription</li>
+{% endblock %}
+
+{% block content %}
+<div class="content">
+    <!-- Page Header -->
+    {% with 
+        title="Subscription Management",
+        subtitle="Manage your subscription plan and billing information"
+    %}
+        {% include 'user/components/page_header.html' %}
+    {% endwith %}
+    
+    <!-- Subscription Overview -->
+    <div class="row mb-4">
+        <div class="col-lg-7 mb-4 mb-lg-0">
+            <div class="dashboard-card">
+                <h4 class="mb-4">Current Subscription</h4>
+                
+                {% if subscription_stats.status == 'active' %}
+                <div class="subscription-status active mb-4">
+                    <div class="d-flex align-items-center mb-3">
+                        <div class="status-icon bg-success-light me-3">
+                            <i class="bi bi-check-circle"></i>
+                        </div>
+                        <div>
+                            <h5 class="mb-1">{{ current_plan.name }} Plan</h5>
+                            <p class="mb-0 text-muted">Your subscription is active</p>
+                        </div>
+                        <div class="ms-auto">
+                            <span class="badge bg-success">Active</span>
+                        </div>
+                    </div>
+                    
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <div class="subscription-detail">
+                                <small class="text-muted d-block mb-1">Started On</small>
+                                <span>{{ subscription_stats.start_date }}</span>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="subscription-detail">
+                                <small class="text-muted d-block mb-1">Renews On</small>
+                                <span>{{ subscription_stats.next_payment }}</span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="subscription-features mt-4">
+                        <h6 class="mb-3">Your Plan Features</h6>
+                        <div class="row">
+                            <div class="col-md-6">
+                                <ul class="feature-list">
+                                    {% if current_plan.features.autoFarm %}
+                                    <li class="feature-available"><i class="bi bi-check-circle-fill me-2"></i> Auto-Farm feature</li>
+                                    {% else %}
+                                    <li class="feature-unavailable"><i class="bi bi-x-circle-fill me-2"></i> Auto-Farm feature</li>
+                                    {% endif %}
+                                    
+                                    {% if current_plan.features.trainer %}
+                                    <li class="feature-available"><i class="bi bi-check-circle-fill me-2"></i> Troop training</li>
+                                    {% else %}
+                                    <li class="feature-unavailable"><i class="bi bi-x-circle-fill me-2"></i> Troop training</li>
+                                    {% endif %}
+                                </ul>
+                            </div>
+                            <div class="col-md-6">
+                                <ul class="feature-list">
+                                    <li class="feature-available"><i class="bi bi-check-circle-fill me-2"></i> Support for {{ current_plan.features.maxVillages }} villages</li>
+                                    <li class="feature-available"><i class="bi bi-check-circle-fill me-2"></i> {{ current_plan.features.maxTasks }} concurrent tasks</li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="subscription-actions mt-4 d-flex gap-2">
+                        <a href="#available-plans" class="btn btn-outline-primary">
+                            <i class="bi bi-arrow-up-circle me-2"></i>Change Plan
+                        </a>
+                        <form action="{{ url_for('api.cancel_subscription') }}" method="post" class="d-inline" onsubmit="return confirm('Are you sure you want to cancel your subscription? You will continue to have access until your current plan expires.')">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                            <button type="submit" class="btn btn-outline-danger">
+                                <i class="bi bi-x-circle me-2"></i>Cancel Subscription
+                            </button>
+                        </form>
+                    </div>
+                </div>
+                
+                {% elif subscription_stats.status == 'cancelled' %}
+                <div class="subscription-status cancelled mb-4">
+                    <div class="d-flex align-items-center mb-3">
+                        <div class="status-icon bg-warning-light me-3">
+                            <i class="bi bi-exclamation-circle"></i>
+                        </div>
+                        <div>
+                            <h5 class="mb-1">{{ current_plan.name }} Plan</h5>
+                            <p class="mb-0 text-muted">Your subscription has been cancelled</p>
+                        </div>
+                        <div class="ms-auto">
+                            <span class="badge bg-warning">Cancelled</span>
+                        </div>
+                    </div>
+                    
+                    <div class="alert alert-warning">
+                        <i class="bi bi-info-circle-fill me-2"></i>
+                        Your access will continue until <strong>{{ subscription_stats.end_date }}</strong>. 
+                        After this date, you'll lose access to premium features.
+                        {% if subscription_stats.remaining_days > 0 %}
+                        <div class="mt-2">You have <strong>{{ subscription_stats.remaining_days }} days</strong> of access remaining.</div>
+                        {% endif %}
+                    </div>
+                    
+                    <div class="subscription-actions mt-4">
+                        <a href="#available-plans" class="btn btn-primary">
+                            <i class="bi bi-arrow-clockwise me-2"></i>Renew Subscription
+                        </a>
+                    </div>
+                </div>
+                
+                {% else %}
+                <div class="subscription-status inactive mb-4">
+                    <div class="d-flex align-items-center mb-3">
+                        <div class="status-icon bg-secondary-light me-3">
+                            <i class="bi bi-dash-circle"></i>
+                        </div>
+                        <div>
+                            <h5 class="mb-1">No Active Subscription</h5>
+                            <p class="mb-0 text-muted">You don't have an active subscription plan</p>
+                        </div>
+                        <div class="ms-auto">
+                            <span class="badge bg-secondary">Inactive</span>
+                        </div>
+                    </div>
+                    
+                    <div class="alert alert-info">
+                        <i class="bi bi-info-circle-fill me-2"></i>
+                        Subscribe to a plan to unlock premium features like Auto-Farm and Troop Training.
+                    </div>
+                    
+                    <div class="subscription-actions mt-4">
+                        <a href="#available-plans" class="btn btn-primary">
+                            <i class="bi bi-plus-circle me-2"></i>Select a Plan
+                        </a>
+                    </div>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+        
+        <!-- Subscription Stats -->
+        <div class="col-lg-5">
+            <div class="dashboard-card h-100">
+                <h4 class="mb-4">Subscription Stats</h4>
+                
+                <div class="stats-grid">
+                    <div class="stat-item">
+                        <div class="stat-icon bg-primary-light">
+                            <i class="bi bi-calendar-check"></i>
+                        </div>
+                        <div class="stat-info">
+                            <h6 class="stat-title">Subscription Age</h6>
+                            <div class="stat-value">{{ subscription_stats.subscription_age }} days</div>
+                        </div>
+                    </div>
+                    
+                    <div class="stat-item">
+                        <div class="stat-icon bg-success-light">
+                            <i class="bi bi-credit-card"></i>
+                        </div>
+                        <div class="stat-info">
+                            <h6 class="stat-title">Total Spent</h6>
+                            <div class="stat-value">${{ "%.2f"|format(subscription_stats.total_spent) }}</div>
+                        </div>
+                    </div>
+                    
+                    <div class="stat-item">
+                        <div class="stat-icon bg-info-light">
+                            <i class="bi bi-receipt"></i>
+                        </div>
+                        <div class="stat-info">
+                            <h6 class="stat-title">Transactions</h6>
+                            <div class="stat-value">{{ subscription_stats.transactions_count }}</div>
+                        </div>
+                    </div>
+                    
+                    <div class="stat-item">
+                        <div class="stat-icon bg-warning-light">
+                            <i class="bi bi-clock-history"></i>
+                        </div>
+                        <div class="stat-info">
+                            <h6 class="stat-title">Next Payment</h6>
+                            <div class="stat-value">{{ subscription_stats.next_payment|truncate(12) }}</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Available Plans -->
+    <div class="row mb-4" id="available-plans">
+        <div class="col-12">
+            <div class="dashboard-card">
+                <div class="d-flex justify-content-between align-items-center mb-4">
+                    <h4 class="mb-0">Available Plans</h4>
+                    
+                    <!-- Billing toggle simplified -->
+                    <div class="form-check form-switch d-flex align-items-center">
+                        <form action="{{ request.path }}" method="get" id="billing-form" class="d-flex align-items-center">
+                            <span class="me-2">Monthly</span>
+                            <input class="form-check-input mx-2" type="checkbox" id="billing_yearly" name="billing" value="yearly" {% if request.args.get('billing') == 'yearly' %}checked{% endif %} onchange="document.getElementById('billing-form').submit()">
+                            <span>Yearly <span class="badge bg-success ms-1">Save up to 20%</span></span>
+                        </form>
+                    </div>
+                </div>
+                
+                <div class="row">
+                    {% for plan in plans %}
+                    <div class="col-md-4 mb-4">
+                        <div class="pricing-card {{ 'border border-2 border-primary' if plan.is_current }}">
+                            
+                            {% if plan.yearly_savings > 0 and request.args.get('billing') == 'yearly' %}
+                            <span class="save-badge">Save {{ plan.yearly_savings }}%</span>
+                            {% endif %}
+                            
+                            {% if plan.is_current %}
+                            <div class="position-absolute top-0 start-50 translate-middle">
+                                <span class="badge bg-primary px-3 py-2">Current Plan</span>
+                            </div>
+                            {% endif %}
+                            
+                            <h4 class="pricing-header">{{ plan.name }}</h4>
+                            <div class="pricing-price">
+                                {% if request.args.get('billing') == 'yearly' %}
+                                ${{ plan.price.yearly }}<small class="text-muted">/year</small>
+                                {% else %}
+                                ${{ plan.price.monthly }}<small class="text-muted">/month</small>
+                                {% endif %}
+                            </div>
+                            
+                            <ul class="feature-list mt-4">
+                                {% if plan.features.autoFarm %}
+                                <li class="feature-available"><i class="bi bi-check-circle-fill me-2"></i> Auto-Farm feature</li>
+                                {% else %}
+                                <li class="feature-unavailable"><i class="bi bi-x-circle-fill me-2"></i> Auto-Farm feature</li>
+                                {% endif %}
+                                
+                                {% if plan.features.trainer %}
+                                <li class="feature-available"><i class="bi bi-check-circle-fill me-2"></i> Troop training</li>
+                                {% else %}
+                                <li class="feature-unavailable"><i class="bi bi-x-circle-fill me-2"></i> Troop training</li>
+                                {% endif %}
+                                
+                                <li class="feature-available"><i class="bi bi-check-circle-fill me-2"></i> Support for {{ plan.features.maxVillages }} villages</li>
+                                
+                                <li class="feature-available"><i class="bi bi-check-circle-fill me-2"></i> {{ plan.features.maxTasks }} concurrent tasks</li>
+                                
+                                {% if plan.features.advanced %}
+                                <li class="feature-available"><i class="bi bi-check-circle-fill me-2"></i> Advanced features</li>
+                                {% else %}
+                                <li class="feature-unavailable"><i class="bi bi-x-circle-fill me-2"></i> Advanced features</li>
+                                {% endif %}
+                            </ul>
+                            
+                            <div class="d-grid gap-2 mt-4">
+                                {% if plan.is_current %}
+                                <button type="button" class="btn btn-outline-primary" disabled>Current Plan</button>
+                                {% else %}
+                                <form action="{{ url_for('api.create_subscription_order_route') }}" method="post">
+                                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                    <input type="hidden" name="planId" value="{{ plan._id }}">
+                                    <input type="hidden" name="billingPeriod" value="{{ 'yearly' if request.args.get('billing') == 'yearly' else 'monthly' }}">
+                                    <button type="submit" class="btn btn-primary w-100">
+                                        {% if subscription_stats.status == 'active' %}
+                                        Switch to {{ plan.name }}
+                                        {% else %}
+                                        Select {{ plan.name }}
+                                        {% endif %}
+                                    </button>
+                                </form>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Transaction History -->
+    <div class="row">
+        <div class="col-12">
+            <div class="dashboard-card">
+                <div class="d-flex justify-content-between align-items-center mb-4">
+                    <h4 class="mb-0">Transaction History</h4>
+                    
+                    {% if transaction_history|length > 0 %}
+                    <!-- Temporary removal of download link until the endpoint is implemented -->
+                    <!--
+                    <a href="#" class="btn btn-sm btn-outline-secondary">
+                        <i class="bi bi-download me-2"></i>Download Summary
+                    </a>
+                    -->
+                    {% endif %}
+                </div>
+                
+                {% if transaction_history|length > 0 %}
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle">
+                        <thead>
+                            <tr>
+                                <th>Date</th>
+                                <th>Plan</th>
+                                <th>Billing</th>
+                                <th>Amount</th>
+                                <th>Payment Method</th>
+                                <th>Status</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for transaction in transaction_history %}
+                            <tr>
+                                <td>{{ transaction.date }}</td>
+                                <td>{{ transaction.plan }}</td>
+                                <td>{{ transaction.billing_period }}</td>
+                                <td>${{ "%.2f"|format(transaction.amount) }}</td>
+                                <td>
+                                    {% if transaction.payment_method == 'paypal' %}
+                                    <i class="bi bi-paypal text-primary me-2"></i>PayPal
+                                    {% else %}
+                                    <i class="bi bi-credit-card text-success me-2"></i>{{ transaction.payment_method|capitalize }}
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if transaction.status == 'completed' %}
+                                    <span class="badge bg-success">Completed</span>
+                                    {% elif transaction.status == 'pending' %}
+                                    <span class="badge bg-warning">Pending</span>
+                                    {% elif transaction.status == 'failed' %}
+                                    <span class="badge bg-danger">Failed</span>
+                                    {% elif transaction.status == 'refunded' %}
+                                    <span class="badge bg-info">Refunded</span>
+                                    {% else %}
+                                    <span class="badge bg-secondary">{{ transaction.status|capitalize }}</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <a href="{{ url_for('user.transaction_details', transaction_id=transaction.id) }}" class="btn btn-sm btn-outline-primary">
+                                        <i class="bi bi-eye"></i> View
+                                    </a>
+                                    {% if transaction.status == 'completed' %}
+                                    <a href="{{ url_for('user.download_receipt', transaction_id=transaction.id) }}" class="btn btn-sm btn-outline-secondary">
+                                        <i class="bi bi-download"></i> Receipt
+                                    </a>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <div class="alert alert-info">
+                    <i class="bi bi-info-circle-fill me-2"></i>
+                    No transaction history available.
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    // Minimal JavaScript, just for user feedback
+    document.addEventListener('DOMContentLoaded', function() {
+        // Handle form submissions with confirmation and visual feedback
+        document.querySelectorAll('form').forEach(form => {
+            form.addEventListener('submit', function(e) {
+                // Don't apply to the billing toggle form
+                if (form.id === 'billing-form') {
+                    return true;
+                }
+                
+                // For subscription forms, show loading state
+                const submitBtn = form.querySelector('button[type="submit"]');
+                if (submitBtn) {
+                    // Only add spinner if it's not the billing form
+                    submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Processing...';
+                    submitBtn.disabled = true;
+                }
+                
+                return true;
+            });
+        });
+    });
+</script>
+{% endblock %}

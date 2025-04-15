@@ -1,0 +1,61 @@
+{% extends 'admin/components/admin-layout.html' %}
+
+{% block title %}Error{% endblock %}
+
+{% block breadcrumb %}
+<li class="breadcrumb-item active" aria-current="page">Error</li>
+{% endblock %}
+
+{% block content %}
+<!-- Page Header -->
+{% with 
+    title="Error",
+    subtitle="An error occurred while processing your request",
+    show_buttons=true,
+    primary_button_text="Back to Dashboard",
+    primary_button_icon="house",
+    primary_button_url=url_for('admin.dashboard')
+%}
+    {% include 'admin/components/admin-page-header.html' %}
+{% endwith %}
+
+<!-- Error Message Card -->
+<div class="dashboard-card">
+    <div class="text-center py-5">
+        <i class="bi bi-exclamation-triangle text-danger" style="font-size: 4rem;"></i>
+        <h3 class="mt-4">{{ error_title|default('Oops! Something went wrong') }}</h3>
+        <p class="lead text-muted">{{ error_message|default('We encountered an error while processing your request.') }}</p>
+        
+        {% if error_details %}
+        <div class="alert alert-danger mt-4 mx-auto" style="max-width: 600px;">
+            <pre class="mb-0">{{ error_details }}</pre>
+        </div>
+        {% endif %}
+        
+        <div class="mt-5">
+            <a href="{{ url_for('admin.dashboard') }}" class="btn btn-primary me-2">
+                <i class="bi bi-house me-1"></i> Dashboard
+            </a>
+            <button type="button" class="btn btn-outline-secondary" onclick="window.location.reload()">
+                <i class="bi bi-arrow-repeat me-1"></i> Try Again
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- Troubleshooting Tips -->
+<div class="dashboard-card mt-4">
+    <div class="card-header">
+        <h5 class="mb-0">Troubleshooting Tips</h5>
+    </div>
+    <div class="card-body">
+        <ol class="mb-0">
+            <li class="mb-2">Refresh the page and try again.</li>
+            <li class="mb-2">Clear your browser cache and cookies.</li>
+            <li class="mb-2">Check your internet connection.</li>
+            <li class="mb-2">Check the server logs for more details about the error.</li>
+            <li class="mb-2">Contact the system administrator if the problem persists.</li>
+        </ol>
+    </div>
+</div>
+{% endblock %}

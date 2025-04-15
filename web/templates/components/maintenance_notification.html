@@ -1,0 +1,15 @@
+{% if maintenance_mode and current_user and current_user.role == 'admin' %}
+<div class="maintenance-notification">
+    <div class="alert alert-warning mb-0 text-center">
+        <i class="bi bi-tools me-2"></i>
+        <strong>Maintenance Mode Active:</strong> 
+        Only administrators can access the site. 
+        {% if maintenance_until %}
+        Scheduled to end at {{ maintenance_until }}
+        {% endif %}
+        <a href="{{ url_for('admin.maintenance') }}" class="ms-2 text-dark">
+            <i class="bi bi-gear-fill"></i> Manage
+        </a>
+    </div>
+</div>
+{% endif %}

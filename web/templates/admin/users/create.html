@@ -1,0 +1,323 @@
+{% extends 'admin/layout.html' %}
+
+{% block title %}Create New User{% endblock %}
+
+{% block breadcrumb %}
+<li class="breadcrumb-item"><a href="{{ url_for('admin.users') }}">User Management</a></li>
+<li class="breadcrumb-item active" aria-current="page">Create User</li>
+{% endblock %}
+
+{% block content %}
+<!-- Page Header -->
+{% with 
+    title="Create New User",
+    subtitle="Add a new user account to the system",
+    show_buttons=true,
+    primary_button_text="Back to Users",
+    primary_button_icon="arrow-left",
+    primary_button_url=url_for('admin.users')
+%}
+    {% include 'admin/components/admin-page-header.html' %}
+{% endwith %}
+
+<div class="row">
+    <!-- User Creation Form -->
+    <div class="col-lg-8 mx-auto">
+        <div class="dashboard-card">
+            <form action="{{ url_for('admin.user_create') }}" method="post" id="createUserForm">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                
+                <!-- Basic Information Section -->
+                <div class="border-bottom pb-3 mb-4">
+                    <h6 class="text-uppercase text-muted">Basic Information</h6>
+                </div>
+                
+                <!-- Username Field -->
+                {% with 
+                    field_type="text",
+                    field_id="username",
+                    field_name="username",
+                    field_label="Username",
+                    field_placeholder="Enter username (3-20 characters)",
+                    field_required=true,
+                    field_help="Username must start with a letter and contain only letters, numbers, and underscores."
+                %}
+                    {% include 'admin/components/admin-form-field.html' %}
+                {% endwith %}
+                
+                <!-- Email Field -->
+                {% with 
+                    field_type="email",
+                    field_id="email",
+                    field_name="email",
+                    field_label="Email Address",
+                    field_placeholder="Enter email address",
+                    field_required=true,
+                    field_help="A valid email address is required for account verification and notifications."
+                %}
+                    {% include 'admin/components/admin-form-field.html' %}
+                {% endwith %}
+                
+                <!-- Password Field -->
+                {% with 
+                    field_type="password",
+                    field_id="password",
+                    field_name="password",
+                    field_label="Password",
+                    field_placeholder="Enter password",
+                    field_required=true,
+                    field_help="Password must be at least 8 characters with uppercase, lowercase, and numbers."
+                %}
+                    {% include 'admin/components/admin-form-field.html' %}
+                {% endwith %}
+                
+                <!-- Role Selection -->
+                {% with 
+                    select_id="role",
+                    select_name="role",
+                    select_label="User Role",
+                    select_options=[
+                        {'value': 'user', 'text': 'User'},
+                        {'value': 'admin', 'text': 'Administrator'}
+                    ],
+                    select_selected='user',
+                    select_required=true,
+                    select_help="Admin users have access to the admin panel and all functionality."
+                %}
+                    {% include 'admin/components/admin-form-select.html' %}
+                {% endwith %}
+                
+                <!-- Verification Checkbox -->
+                {% with 
+                    checkbox_id="isVerified",
+                    checkbox_name="isVerified",
+                    checkbox_label="Mark Account as Verified",
+                    checkbox_checked=true,
+                    checkbox_help="If checked, the user will not need to verify their email address.",
+                    checkbox_switch=true
+                %}
+                    {% include 'admin/components/admin-form-checkbox.html' %}
+                {% endwith %}
+                
+                <!-- Notification Checkbox -->
+                {% with 
+                    checkbox_id="sendNotification",
+                    checkbox_name="sendNotification",
+                    checkbox_label="Send Welcome Email with Login Details",
+                    checkbox_checked=true,
+                    checkbox_help="The user will receive an email with their login information.",
+                    checkbox_switch=true
+                %}
+                    {% include 'admin/components/admin-form-checkbox.html' %}
+                {% endwith %}
+                
+                <!-- Add this section to the user creation form after other fields -->
+<!-- Subscription Section -->
+<div class="border-bottom pb-3 mb-4 mt-5">
+    <h6 class="text-uppercase text-muted">Subscription Details</h6>
+</div>
+
+<!-- Subscription Status -->
+{% with 
+    select_id="subscription_status",
+    select_name="subscription_status",
+    select_label="Subscription Status",
+    select_options=[
+        {'value': 'inactive', 'text': 'Inactive'},
+        {'value': 'active', 'text': 'Active'}
+    ],
+    select_selected='inactive',
+    select_required=true,
+    select_help="Set whether this user has an active subscription."
+%}
+    {% include 'admin/components/admin-form-select.html' %}
+{% endwith %}
+
+<!-- Subscription Plan and Billing Period Container - Toggled by JavaScript -->
+<div id="planSelectionContainer">
+    <!-- Subscription Plan -->
+    {% with 
+        select_id="subscription_plan",
+        select_name="subscription_plan",
+        select_label="Subscription Plan",
+        select_options=plans,
+        select_required=false,
+        select_help="Select the subscription plan for this user."
+    %}
+        {% include 'admin/components/admin-form-select.html' %}
+    {% endwith %}
+    
+    <!-- Billing Period -->
+    {% with 
+        select_id="billing_period",
+        select_name="billing_period",
+        select_label="Billing Period",
+        select_options=[
+            {'value': 'monthly', 'text': 'Monthly'},
+            {'value': 'yearly', 'text': 'Yearly'}
+        ],
+        select_selected='monthly',
+        select_required=true,
+        select_help="Determines subscription duration and pricing."
+    %}
+        {% include 'admin/components/admin-form-select.html' %}
+    {% endwith %}
+</div>
+                
+                <!-- Form Buttons -->
+                <div class="mt-4 d-flex justify-content-between">
+                    <a href="{{ url_for('admin.users') }}" class="btn btn-outline-secondary">
+                        <i class="bi bi-x-lg me-1"></i> Cancel
+                    </a>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="bi bi-person-plus me-1"></i> Create User
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Form validation
+    const form = document.getElementById('createUserForm');
+    const username = document.getElementById('username');
+    const email = document.getElementById('email');
+    const password = document.getElementById('password');
+    const subscriptionStatus = document.getElementById('subscriptionStatus');
+    const subscriptionPlan = document.getElementById('subscriptionPlan');
+    const planSelectionContainer = document.getElementById('planSelectionContainer');
+    
+    // Toggle plan selection visibility based on subscription status
+    function togglePlanVisibility() {
+        if (subscriptionStatus.value === 'active') {
+            planSelectionContainer.style.display = 'block';
+        } else {
+            planSelectionContainer.style.display = 'none';
+        }
+    }
+    
+    // Initialize plan visibility
+    togglePlanVisibility();
+    
+    // Listen for changes to subscription status
+    subscriptionStatus.addEventListener('change', togglePlanVisibility);
+    
+    // Form validation on submit
+    if (form) {
+        form.addEventListener('submit', function(event) {
+            let isValid = true;
+            
+            // Username validation
+            if (!username.value) {
+                showError(username, 'Username is required');
+                isValid = false;
+            } else if (username.value.length < 3 || username.value.length > 20) {
+                showError(username, 'Username must be between 3 and 20 characters');
+                isValid = false;
+            } else if (!/^[a-zA-Z][a-zA-Z0-9_]*$/.test(username.value)) {
+                showError(username, 'Username must start with a letter and contain only letters, numbers, and underscores');
+                isValid = false;
+            } else {
+                clearError(username);
+            }
+            
+            // Email validation
+            if (!email.value) {
+                showError(email, 'Email address is required');
+                isValid = false;
+            } else if (!/\S+@\S+\.\S+/.test(email.value)) {
+                showError(email, 'Please enter a valid email address');
+                isValid = false;
+            } else {
+                clearError(email);
+            }
+            
+            // Password validation
+            if (!password.value) {
+                showError(password, 'Password is required');
+                isValid = false;
+            } else if (password.value.length < 8) {
+                showError(password, 'Password must be at least 8 characters long');
+                isValid = false;
+            } else if (!/[A-Z]/.test(password.value)) {
+                showError(password, 'Password must contain at least one uppercase letter');
+                isValid = false;
+            } else if (!/[a-z]/.test(password.value)) {
+                showError(password, 'Password must contain at least one lowercase letter');
+                isValid = false;
+            } else if (!/[0-9]/.test(password.value)) {
+                showError(password, 'Password must contain at least one number');
+                isValid = false;
+            } else {
+                clearError(password);
+            }
+            
+            // Subscription plan validation
+            if (subscriptionStatus.value === 'active' && (!subscriptionPlan || !subscriptionPlan.value)) {
+                showError(subscriptionPlan, 'Please select a subscription plan');
+                isValid = false;
+            } else if (subscriptionPlan) {
+                clearError(subscriptionPlan);
+            }
+            
+            // Prevent form submission if validation fails
+            if (!isValid) {
+                event.preventDefault();
+            }
+        });
+    }
+    
+    // Helper functions for form validation
+    function showError(input, message) {
+        const formGroup = input.closest('.mb-3');
+        let errorDiv = formGroup.querySelector('.invalid-feedback');
+        
+        if (!errorDiv) {
+            errorDiv = document.createElement('div');
+            errorDiv.className = 'invalid-feedback d-block';
+            input.parentNode.appendChild(errorDiv);
+        }
+        
+        errorDiv.textContent = message;
+        input.classList.add('is-invalid');
+    }
+    
+    function clearError(input) {
+        const formGroup = input.closest('.mb-3');
+        const errorDiv = formGroup.querySelector('.invalid-feedback');
+        
+        if (errorDiv) {
+            errorDiv.remove();
+        }
+        
+        input.classList.remove('is-invalid');
+    }
+});
+// Add this to the existing JavaScript in the create user page
+// Toggle subscription plan field based on status
+const subscriptionStatus = document.getElementById('subscription_status');
+const planSelectionContainer = document.getElementById('planSelectionContainer');
+
+function togglePlanVisibility() {
+    if (subscriptionStatus && planSelectionContainer) {
+        if (subscriptionStatus.value === 'active') {
+            planSelectionContainer.style.display = 'block';
+        } else {
+            planSelectionContainer.style.display = 'none';
+        }
+    }
+}
+
+// Initialize visibility
+togglePlanVisibility();
+
+// Listen for changes
+if (subscriptionStatus) {
+    subscriptionStatus.addEventListener('change', togglePlanVisibility);
+}
+</script>
+{% endblock %}

@@ -1,0 +1,51 @@
+{% extends 'base.html' %}
+
+{% block title %}Error{% endblock %}
+
+{% block content %}
+<div class="container mt-5">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="card border-danger">
+                <div class="card-header bg-danger text-white">
+                    <h4 class="mb-0">{{ error_code }} - {{ error_name }}</h4>
+                </div>
+                <div class="card-body">
+                    <div class="text-center mb-4">
+                        <i class="bi bi-exclamation-triangle-fill text-danger" style="font-size: 4rem;"></i>
+                    </div>
+                    
+                    <h5 class="text-center mb-4">{{ error_message|default('An error occurred while processing your request.') }}</h5>
+                    
+                    <p class="text-center">
+                        Please try again or contact support if the problem persists.
+                    </p>
+                    
+                    <div class="text-center mt-4">
+                        <a href="{{ url_for('public.index') }}" class="btn btn-outline-primary me-2">
+                            <i class="bi bi-house-door me-1"></i> Home
+                        </a>
+                        
+                        {% if current_user %}
+                        <a href="{{ url_for('user.dashboard') }}" class="btn btn-outline-secondary">
+                            <i class="bi bi-speedometer2 me-1"></i> Dashboard
+                        </a>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+            
+            {% if error_details %}
+            <div class="card mt-4">
+                <div class="card-header">
+                    <h5 class="mb-0">Error Details</h5>
+                </div>
+                <div class="card-body">
+                    <pre class="bg-light p-3 rounded">{{ error_details }}</pre>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}

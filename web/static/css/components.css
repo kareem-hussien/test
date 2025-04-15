@@ -1,0 +1,174 @@
+/* Village Management Components */
+.village-item {
+    display: flex;
+    align-items: center;
+    padding: 12px;
+    border-bottom: 1px solid rgba(0,0,0,0.05);
+    transition: background-color 0.3s;
+}
+
+.village-item:hover {
+    background-color: rgba(0,0,0,0.02);
+}
+
+.village-icon {
+    margin-right: 15px;
+}
+
+.village-info {
+    flex-grow: 1;
+}
+
+.village-name {
+    font-weight: 600;
+    margin-bottom: 2px;
+}
+
+.village-coords {
+    font-size: 0.85rem;
+    color: #777;
+}
+
+.resource-indicator {
+    display: inline-flex;
+    align-items: center;
+    margin-right: 10px;
+    font-size: 0.85rem;
+}
+
+.resource-wood {
+    color: #8BC34A;
+}
+
+.resource-clay {
+    color: #FF9800;
+}
+
+.resource-iron {
+    color: #607D8B;
+}
+
+.resource-crop {
+    color: #FFEB3B;
+}
+
+.stat-card {
+    background-color: #f8f9fa;
+    border-radius: 8px;
+    padding: 12px;
+    text-align: center;
+    transition: transform 0.3s, box-shadow 0.3s;
+}
+
+.stat-card:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+}
+
+.stat-title {
+    font-size: 0.85rem;
+    color: #6c757d;
+    margin-bottom: 6px;
+}
+
+.stat-value {
+    font-size: 1.5rem;
+    font-weight: 600;
+    color: #3a6ea5;
+}
+
+/* Dashboard Card */
+.dashboard-card {
+    background-color: #fff;
+    border-radius: 10px;
+    box-shadow: 0 4px 10px rgba(0,0,0,0.05);
+    padding: 1.5rem;
+    height: 100%;
+    position: relative;
+    overflow: hidden;
+}
+
+.subscription-badge {
+    position: absolute;
+    top: 0;
+    right: 0;
+    padding: 5px 10px;
+    border-radius: 0 8px 0 8px;
+    font-size: 0.8rem;
+    font-weight: 600;
+}
+
+/* General Components Styling */
+.feature-card {
+    background-color: #fff;
+    border-radius: 10px;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.08);
+    padding: 1.5rem;
+    height: 100%;
+    transition: transform 0.3s, box-shadow 0.3s;
+}
+
+.feature-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 8px 25px rgba(0,0,0,0.1);
+}
+
+.feature-icon {
+    width: 60px;
+    height: 60px;
+    background-color: #f1f8ff;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 1.5rem;
+}
+
+.feature-icon i {
+    font-size: 2rem;
+    color: #3a6ea5;
+}
+
+.task-card {
+    background-color: #fff;
+    border-radius: 10px;
+    box-shadow: 0 3px 10px rgba(0,0,0,0.05);
+    padding: 1.2rem;
+    margin-bottom: 1rem;
+}
+
+.task-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 0.8rem;
+}
+
+.task-title {
+    margin-bottom: 0;
+}
+
+.task-status {
+    display: inline-block;
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    margin-right: 5px;
+}
+
+.status-active {
+    background-color: #28a745;
+}
+
+.status-paused {
+    background-color: #ffc107;
+}
+
+.status-stopped {
+    background-color: #dc3545;
+}
+
+.task-controls {
+    display: flex;
+    gap: 10px;
+}

@@ -1,0 +1,77 @@
+services:
+  mongodb:
+    image: mongo:4.4
+    volumes:
+      - mongodb_data:/data/db
+    ports:
+      - "27017:27017"
+    environment:
+      - MONGO_INITDB_DATABASE=whispers
+    networks:
+      - travian-network
+    restart: always
+
+  mongo-express:
+    image: mongo-express
+    ports:
+      - "8081:8081"
+    environment:
+      - ME_CONFIG_MONGODB_SERVER=mongodb
+    depends_on:
+      - mongodb
+    networks:
+      - travian-network
+    restart: always
+
+  # Use a specific version of the Selenium Grid image
+  selenium:
+    image: selenium/standalone-chrome:latest
+    ports:
+      - "4444:4444"
+      - "7900:7900" # VNC port for debugging
+    volumes:
+      - /dev/shm:/dev/shm
+    environment:
+      - SE_NODE_MAX_SESSIONS=5
+      - SE_NODE_OVERRIDE_MAX_SESSIONS=true
+      - SE_VNC_NO_PASSWORD=true
+    networks:
+      - travian-network
+    restart: always
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:4444/wd/hub/status"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+  web:
+    build: .
+    command: gunicorn --bind 0.0.0.0:5000 --timeout 120 "web.app:create_app()"
+    volumes:
+      - ./:/app
+      - logs:/app/logs
+      - backups:/app/backups
+    ports:
+      - "5000:5000"
+    environment:
+      - FLASK_ENV=production
+      - MONGODB_URI=mongodb://mongodb:27017/whispers
+      - MONGODB_DB_NAME=whispers
+      - SECRET_KEY=defaultsecretkey
+      - JWT_SECRET=defaultjwtsecret
+      - SELENIUM_REMOTE_URL=http://selenium:4444/wd/hub
+    depends_on:
+      - mongodb
+      - selenium
+    networks:
+      - travian-network
+    restart: always
+
+volumes:
+  mongodb_data:
+  logs:
+  backups:
+
+networks:
+  travian-network:
+    driver: bridge
