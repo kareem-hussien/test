@@ -267,10 +267,27 @@ class User:
             
             update_data["updatedAt"] = datetime.utcnow()
             
-            result = self.collection.update_one(
-                {"_id": ObjectId(user_id)},
-                {"$set": update_data}
-            )
+            # Handle nested dot notation updates (like 'travianCredentials.gold_club_member')
+            final_update = {}
+            dot_notation_updates = {}
+            
+            for key, value in update_data.items():
+                if "." in key:
+                    dot_notation_updates[key] = value
+                else:
+                    final_update[key] = value
+            
+            # If there are dot notation updates, use them directly in $set
+            if dot_notation_updates:
+                result = self.collection.update_one(
+                    {"_id": ObjectId(user_id)},
+                    {"$set": {**final_update, **dot_notation_updates}}
+                )
+            else:
+                result = self.collection.update_one(
+                    {"_id": ObjectId(user_id)},
+                    {"$set": final_update}
+                )
             
             return result.modified_count > 0
         except Exception as e:
@@ -394,4 +411,81 @@ def merge_villages(self, user_id, new_villages):
         return result.modified_count > 0
     except Exception as e:
         logger.error(f"Error merging villages: {e}")
+        return False
+    
+"""
+This is a partial update to the User model to support the Gold Club membership feature.
+"""
+
+def update_travian_credentials(self, user_id, travian_username=None, travian_password=None, tribe=None, profile_id=None, server=None, gold_club_member=None):
+    """
+    Update user's Travian credentials.
+    
+    Args:
+        user_id (str): User ID
+        travian_username (str, optional): Travian username
+        travian_password (str, optional): Travian password
+        tribe (str, optional): Travian tribe
+        profile_id (str, optional): Travian profile ID
+        server (str, optional): Travian server URL
+        gold_club_member (bool, optional): Whether user is a Gold Club member
+        
+    Returns:
+        bool: True if successful, False otherwise
+    """
+    if self.collection is None:
+        logger.error("Database not connected")
+        return False
+        
+    try:
+        # Build update data
+        update_data = {"travianCredentials": {}}
+        
+        # Get current credentials
+        user = self.get_user_by_id(user_id)
+        if not user:
+            logger.error(f"User not found: {user_id}")
+            return False
+            
+        current_credentials = user.get('travianCredentials', {})
+        
+        # Update only provided fields
+        if travian_username is not None:
+            update_data["travianCredentials"]["username"] = travian_username
+        else:
+            update_data["travianCredentials"]["username"] = current_credentials.get('username', '')
+            
+        if travian_password is not None:
+            # Only update if not masked
+            if travian_password != '********':
+                update_data["travianCredentials"]["password"] = travian_password
+            else:
+                update_data["travianCredentials"]["password"] = current_credentials.get('password', '')
+        else:
+            update_data["travianCredentials"]["password"] = current_credentials.get('password', '')
+            
+        if tribe is not None:
+            update_data["travianCredentials"]["tribe"] = tribe
+        else:
+            update_data["travianCredentials"]["tribe"] = current_credentials.get('tribe', '')
+            
+        if profile_id is not None:
+            update_data["travianCredentials"]["profileId"] = profile_id
+        else:
+            update_data["travianCredentials"]["profileId"] = current_credentials.get('profileId', '')
+            
+        if server is not None:
+            update_data["travianCredentials"]["server"] = server
+        else:
+            update_data["travianCredentials"]["server"] = current_credentials.get('server', '')
+            
+        if gold_club_member is not None:
+            update_data["travianCredentials"]["gold_club_member"] = gold_club_member
+        else:
+            update_data["travianCredentials"]["gold_club_member"] = current_credentials.get('gold_club_member', False)
+        
+        # Update user
+        return self.update_user(user_id, update_data)
+    except Exception as e:
+        logger.error(f"Error updating Travian credentials: {e}")
         return False

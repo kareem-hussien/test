@@ -1,5 +1,6 @@
 """
-Enhanced Travian settings module with automatic village extraction.
+Updated Travian settings module to include Gold Club membership.
+This is a modification of the existing travian_settings.py file.
 """
 import logging
 
@@ -99,6 +100,7 @@ def travian_settings():
         travian_password = request.form.get('travian_password', '')
         travian_server = request.form.get('travian_server', '')
         travian_tribe = request.form.get('travian_tribe', '')
+        gold_club_member = 'gold_club_member' in request.form
         
         # Validate inputs
         error = False
@@ -127,7 +129,8 @@ def travian_settings():
                     'username': travian_username,
                     'password': '********' if user['travianCredentials'].get('password', '') else '',
                     'server': travian_server,
-                    'tribe': travian_tribe
+                    'tribe': travian_tribe,
+                    'gold_club_member': gold_club_member
                 },
                 'last_connection': 'Never',  # Default value
                 'connection_verified': False,
@@ -136,7 +139,6 @@ def travian_settings():
             
             # Try to get connection log information
             try:
-                from database.models.activity_log import ActivityLog
                 activity_model = ActivityLog()
                 connection_log = activity_model.get_latest_user_activity(
                     user_id=session['user_id'],
@@ -162,7 +164,8 @@ def travian_settings():
                 'username': travian_username,
                 'password': travian_password,
                 'server': travian_server,
-                'tribe': travian_tribe
+                'tribe': travian_tribe,
+                'gold_club_member': gold_club_member
             }
         }
         
@@ -228,7 +231,6 @@ def travian_settings():
             
             # Log the activity
             try:
-                from database.models.activity_log import ActivityLog
                 activity_model = ActivityLog()
                 
                 # Log different activity based on verification result
@@ -240,7 +242,8 @@ def travian_settings():
                         status='success',
                         data={
                             'villages_extracted': villages_extracted,
-                            'villages_count': villages_count
+                            'villages_count': villages_count,
+                            'gold_club_member': gold_club_member
                         }
                     )
                 else:
@@ -248,7 +251,10 @@ def travian_settings():
                         user_id=session['user_id'],
                         activity_type='travian-settings-update',
                         details='Updated Travian account settings',
-                        status='success'
+                        status='success',
+                        data={
+                            'gold_club_member': gold_club_member
+                        }
                     )
             except Exception as e:
                 logger.error(f"Error logging activity: {e}")
@@ -264,7 +270,8 @@ def travian_settings():
             'username': user['travianCredentials'].get('username', ''),
             'password': '********' if user['travianCredentials'].get('password', '') else '',
             'server': user['travianCredentials'].get('server', ''),
-            'tribe': user['travianCredentials'].get('tribe', '')
+            'tribe': user['travianCredentials'].get('tribe', ''),
+            'gold_club_member': user['travianCredentials'].get('gold_club_member', False)
         },
         'last_connection': 'Never',  # Default value
         'connection_verified': False,
@@ -273,7 +280,6 @@ def travian_settings():
     }
     
     try:
-        from database.models.activity_log import ActivityLog
         activity_model = ActivityLog()
         
         # Get latest connection activity

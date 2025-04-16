@@ -59,6 +59,25 @@
                     <small class="form-text text-muted">Select your tribe for proper troop training configuration</small>
                 </div>
                 
+                <!-- New Gold Club Membership Option -->
+                <div class="mb-3">
+                    <label class="form-label">Gold Club Membership</label>
+                    <div class="d-flex align-items-center">
+                        <div class="form-check form-switch">
+                            <input class="form-check-input" type="checkbox" id="gold_club_member" name="gold_club_member" 
+                                   {% if user_profile.travian_credentials.gold_club_member %}checked{% endif %}
+                                   {% if not user_profile.travian_credentials.username or not user_profile.travian_credentials.password %}disabled{% endif %}>
+                            <label class="form-check-label" for="gold_club_member">Gold Club Member</label>
+                        </div>
+                        <button type="button" id="verifyGoldClubBtn" class="btn btn-sm btn-outline-warning ms-3"
+                                {% if not user_profile.travian_credentials.username or not user_profile.travian_credentials.password or not user_profile.travian_credentials.server %}disabled{% endif %}>
+                            <i class="bi bi-check-circle me-1"></i>Verify
+                        </button>
+                        <div id="goldClubStatus" class="ms-3"></div>
+                    </div>
+                    <small class="form-text text-muted">Enable additional features for Gold Club members</small>
+                </div>
+                
                 <div class="alert alert-info">
                     <i class="bi bi-info-circle-fill me-2"></i>
                     After saving your Travian credentials, we'll automatically verify your connection and extract your villages.
@@ -111,6 +130,17 @@
             </div>
             {% endif %}
             
+            <!-- Gold Club Status Card -->
+            {% if user_profile.travian_credentials.gold_club_member %}
+            <div class="alert alert-warning mt-3">
+                <i class="bi bi-trophy-fill me-2"></i>
+                <strong>Gold Club Member!</strong>
+                <div class="mt-2">
+                    <small>Enhanced features are available for Gold Club members</small>
+                </div>
+            </div>
+            {% endif %}
+            
             <div class="alert alert-info mt-4">
                 <i class="bi bi-info-circle-fill me-2"></i>
                 <span>These settings are required for automation features like Auto Farm and Troop Training to work.</span>
@@ -148,76 +178,175 @@
 {% block scripts %}
 <script src="{{ url_for('static', filename='js/travian_verification.js') }}"></script>
 <script>
-    // Handle the password field behavior
-    document.addEventListener('DOMContentLoaded', function() {
-        const passwordField = document.getElementById('travian_password');
-        
-        // Store the original password value
-        const originalValue = passwordField.value;
-        
-        // Clear the actual value but keep it in a data attribute
-        if (originalValue === "********") {
-            passwordField.value = '';
-            passwordField.setAttribute('data-has-password', 'true');
-            passwordField.setAttribute('placeholder', '********');
-        }
-        
-        // When the form is submitted, if the field is empty and had a password,
-        // set the value back to ******** so the backend knows to use the existing password
-        const form = passwordField.closest('form');
-        form.addEventListener('submit', function(event) {
-            // Show loading message
-            const submitButton = form.querySelector('button[type="submit"]');
-            if (submitButton) {
-                submitButton.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Saving...';
-                submitButton.disabled = true;
+        // Handle the password field behavior
+        document.addEventListener('DOMContentLoaded', function() {
+            const passwordField = document.getElementById('travian_password');
+            
+            // Store the original password value
+            const originalValue = passwordField.value;
+            
+            // Clear the actual value but keep it in a data attribute
+            if (originalValue === "********") {
+                passwordField.value = '';
+                passwordField.setAttribute('data-has-password', 'true');
+                passwordField.setAttribute('placeholder', '********');
             }
             
-            if (passwordField.value === '' && passwordField.getAttribute('data-has-password') === 'true') {
-                passwordField.value = '********';
-            }
+            // When the form is submitted, if the field is empty and had a password,
+            // set the value back to ******** so the backend knows to use the existing password
+            const form = passwordField.closest('form');
+            form.addEventListener('submit', function(event) {
+                // Show loading message
+                const submitButton = form.querySelector('button[type="submit"]');
+                if (submitButton) {
+                    submitButton.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Saving...';
+                    submitButton.disabled = true;
+                }
+                
+                if (passwordField.value === '' && passwordField.getAttribute('data-has-password') === 'true') {
+                    passwordField.value = '********';
+                }
+            });
         });
-    });
+        
+        // Add validation feedback for form fields
+        document.addEventListener('DOMContentLoaded', function() {
+            const form = document.querySelector('form');
+            const usernameField = document.getElementById('travian_username');
+            const passwordField = document.getElementById('travian_password');
+            const serverField = document.getElementById('travian_server');
+            
+            form.addEventListener('submit', function(event) {
+                let isValid = true;
+                
+                // Validate username
+                if (!usernameField.value.trim()) {
+                    usernameField.classList.add('is-invalid');
+                    isValid = false;
+                } else {
+                    usernameField.classList.remove('is-invalid');
+                    usernameField.classList.add('is-valid');
+                }
+                
+                // Validate password - only if it's not using the stored password
+                if (passwordField.getAttribute('data-has-password') !== 'true' && !passwordField.value) {
+                    passwordField.classList.add('is-invalid');
+                    isValid = false;
+                } else {
+                    passwordField.classList.remove('is-invalid');
+                    passwordField.classList.add('is-valid');
+                }
+                
+                // Validate server URL
+                if (serverField.value.trim() && !serverField.value.trim().startsWith('http')) {
+                    // Add http:// prefix if missing
+                    serverField.value = 'https://' + serverField.value.trim();
+                }
+                
+                // Prevent form submission if validation fails
+                if (!isValid) {
+                    event.preventDefault();
+                }
+            });
+        });
     
-    // Add validation feedback for form fields
-    document.addEventListener('DOMContentLoaded', function() {
-        const form = document.querySelector('form');
-        const usernameField = document.getElementById('travian_username');
-        const passwordField = document.getElementById('travian_password');
-        const serverField = document.getElementById('travian_server');
-        
-        form.addEventListener('submit', function(event) {
-            let isValid = true;
+        // Gold Club verification handler
+        document.addEventListener('DOMContentLoaded', function() {
+            const verifyGoldClubBtn = document.getElementById('verifyGoldClubBtn');
+            const goldClubStatus = document.getElementById('goldClubStatus');
+            const goldClubMember = document.getElementById('gold_club_member');
             
-            // Validate username
-            if (!usernameField.value.trim()) {
-                usernameField.classList.add('is-invalid');
-                isValid = false;
+            if (verifyGoldClubBtn) {
+                console.log('Gold Club verification button found, adding event listener');
+                
+                verifyGoldClubBtn.addEventListener('click', function() {
+                    console.log('Verify Gold Club button clicked');
+                    
+                    // Show loading state
+                    verifyGoldClubBtn.disabled = true;
+                    verifyGoldClubBtn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Verifying...';
+                    goldClubStatus.innerHTML = '<span class="text-info">Checking your account...</span>';
+                    
+                    // Get travian credentials
+                    const username = document.getElementById('travian_username').value;
+                    const password = document.getElementById('travian_password').value || '********'; // Use masked password if empty
+                    const server = document.getElementById('travian_server').value;
+                    
+                    console.log('Preparing to send verification request for:', username, 'to server:', server);
+                    
+                    // Create the request
+                    const xhr = new XMLHttpRequest();
+                    xhr.open('POST', '/api/user/verify-gold-club', true);
+                    xhr.setRequestHeader('Content-Type', 'application/json');
+                    xhr.setRequestHeader('X-CSRFToken', getCsrfToken());
+                    
+                    xhr.onload = function() {
+                        console.log('Received response:', xhr.status, xhr.responseText);
+                        
+                        // Reset button state
+                        verifyGoldClubBtn.disabled = false;
+                        verifyGoldClubBtn.innerHTML = '<i class="bi bi-check-circle me-1"></i>Verify';
+                        
+                        if (xhr.status === 200) {
+                            try {
+                                const response = JSON.parse(xhr.responseText);
+                                
+                                // Update status based on result
+                                if (response.success) {
+                                    goldClubStatus.innerHTML = '<span class="text-success">Confirmed</span>';
+                                    goldClubMember.checked = true;
+                                } else {
+                                    goldClubStatus.innerHTML = '<span class="text-danger">Not a Gold Club member</span>';
+                                    goldClubMember.checked = false;
+                                }
+                            } catch (e) {
+                                console.error('Error parsing response:', e);
+                                goldClubStatus.innerHTML = '<span class="text-danger">Error processing response</span>';
+                            }
+                        } else {
+                            goldClubStatus.innerHTML = '<span class="text-danger">Error: ' + xhr.status + '</span>';
+                            console.error('Error verifying Gold Club membership:', xhr.status, xhr.responseText);
+                        }
+                    };
+                    
+                    xhr.onerror = function() {
+                        console.error('Request failed');
+                        verifyGoldClubBtn.disabled = false;
+                        verifyGoldClubBtn.innerHTML = '<i class="bi bi-check-circle me-1"></i>Verify';
+                        goldClubStatus.innerHTML = '<span class="text-danger">Network error</span>';
+                    };
+                    
+                    // Prepare data and send request
+                    const data = JSON.stringify({
+                        username: username,
+                        password: password,
+                        server: server
+                    });
+                    
+                    console.log('Sending verification request');
+                    xhr.send(data);
+                });
             } else {
-                usernameField.classList.remove('is-invalid');
-                usernameField.classList.add('is-valid');
+                console.warn('Gold Club verification button not found in the DOM');
             }
             
-            // Validate password - only if it's not using the stored password
-            if (passwordField.getAttribute('data-has-password') !== 'true' && !passwordField.value) {
-                passwordField.classList.add('is-invalid');
-                isValid = false;
-            } else {
-                passwordField.classList.remove('is-invalid');
-                passwordField.classList.add('is-valid');
-            }
-            
-            // Validate server URL
-            if (serverField.value.trim() && !serverField.value.trim().startsWith('http')) {
-                // Add http:// prefix if missing
-                serverField.value = 'https://' + serverField.value.trim();
-            }
-            
-            // Prevent form submission if validation fails
-            if (!isValid) {
-                event.preventDefault();
+            // Helper function to get CSRF token
+            function getCsrfToken() {
+                // Try to get token from meta tag
+                const metaToken = document.querySelector('meta[name="csrf-token"]');
+                if (metaToken) {
+                    return metaToken.getAttribute('content');
+                }
+                
+                // Try to get token from form input
+                const inputToken = document.querySelector('input[name="csrf_token"]');
+                if (inputToken) {
+                    return inputToken.value;
+                }
+                
+                console.warn('CSRF token not found');
+                return '';
             }
         });
-    });
 </script>
 {% endblock %}

@@ -15,6 +15,9 @@ from web.routes import register_blueprints
 from web.utils.error_handlers import register_error_handlers
 from web.utils.context_processors import register_context_processors
 from web.maintenance import register_maintenance_middleware
+from web.routes.gold_club_api import register_routes as register_gold_club_api_routes
+
+
 
 def create_app(config_object=None):
     """
@@ -44,6 +47,9 @@ def create_app(config_object=None):
     # Register extensions
     register_extensions(app)
     
+    # Register Gold Club API routes
+    register_gold_club_api_routes(app)
+
     # Register Travian API routes
     register_travian_api_routes(app)
     
