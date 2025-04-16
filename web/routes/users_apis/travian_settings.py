@@ -1,31 +1,22 @@
 """
-Enhanced Travian settings module with automatic village extraction.
+Updated Travian settings module with automatic village extraction and Gold Club verification.
 """
 import logging
 
-import time
 from flask import (
     render_template, request, redirect, 
-    url_for, flash, session, jsonify
+    url_for, flash, session
 )
-
 from bson import ObjectId
+
 from web.utils.decorators import login_required
 from database.models.user import User
 from database.models.activity_log import ActivityLog
+from web.routes.users_apis.villages import extract_villages_internal
 
-# Import needed for connection testing
-try:
-    from travian_api.connector import test_connection
-except ImportError:
-    # Define a fallback function if the module is not available
-    def test_connection(username, password, server_url, timeout=30):
-        logger.warning("travian_api.connector module not available, using fallback")
-        return {
-            'success': False,
-            'message': "Connection test not available - module not installed"
-        }
-        
+# Import Gold Club verification function
+from web.utils.gold_club import verify_gold_club_membership
+
 # Initialize logger
 logger = logging.getLogger(__name__)
 
@@ -84,7 +75,7 @@ def travian_settings():
         session.clear()
         return redirect(url_for('auth.login'))
     
-    # Check if user has an active subscription - ADDED SUBSCRIPTION CHECK
+    # Check if user has an active subscription
     if user['subscription']['status'] != 'active':
         # Flash error message
         flash('You need an active subscription to connect a Travian account', 'warning')
@@ -131,12 +122,11 @@ def travian_settings():
                 },
                 'last_connection': 'Never',  # Default value
                 'connection_verified': False,
-                'show_verify_button': True
+                'is_gold_member': user['travianCredentials'].get('is_gold_member', False)
             }
             
             # Try to get connection log information
             try:
-                from database.models.activity_log import ActivityLog
                 activity_model = ActivityLog()
                 connection_log = activity_model.get_latest_user_activity(
                     user_id=session['user_id'],
@@ -162,96 +152,125 @@ def travian_settings():
                 'username': travian_username,
                 'password': travian_password,
                 'server': travian_server,
-                'tribe': travian_tribe
+                'tribe': travian_tribe,
+                'is_gold_member': user['travianCredentials'].get('is_gold_member', False) # Preserve existing gold club status
             }
         }
         
         # Update user in database
         if user_model.update_user(session['user_id'], update_data):
-            # Flash success message
+            # Flash initial success message
             flash('Travian account settings updated successfully', 'success')
             logger.info(f"User '{user['username']}' updated Travian settings")
             
-            # Attempt to verify connection with Travian servers and extract villages
-            connection_verified = False
-            villages_extracted = False
-            villages_count = 0
+            # Attempt to verify connection with Travian servers
             try:
-                # Test the connection
-                from travian_api.connector import test_connection
-                connection_result = test_connection(
-                    travian_username, 
-                    travian_password, 
-                    travian_server
-                )
-                connection_verified = connection_result['success']
+                # Get fresh user data with updated credentials
+                updated_user = user_model.get_user_by_id(session['user_id'])
                 
-                if connection_verified:
-                    flash('Travian account successfully connected and verified!', 'success')
-                    logger.info(f"Travian connection verified for user '{user['username']}'")
+                # Notify user that we're trying connection
+                flash('Verifying connection and extracting villages...', 'info')
+                
+                # Execute village extraction (which also verifies connection)
+                extraction_result = extract_villages_internal(session['user_id'])
+                
+                if extraction_result.get('success'):
+                    villages_count = len(extraction_result.get('data', []))
+                    flash(f'Successfully extracted {villages_count} villages from your Travian account!', 'success')
+                    logger.info(f"Villages extracted for user '{user['username']}': {villages_count}")
                     
-                    # Now automatically extract villages
-                    try:
-                        # Notify user that we're extracting villages
-                        flash('Extracting villages from your Travian account...', 'info')
-                        
-                        # Import the extract_villages function
-                        try:
-                            from web.routes.users_apis.villages import extract_villages_internal
-                            
-                            # Extract villages
-                            extraction_result = extract_villages_internal(session['user_id'])
-                            
-                            if extraction_result.get('success'):
-                                villages_extracted = True
-                                villages_count = len(extraction_result.get('data', []))
-                                flash(f'Successfully extracted {villages_count} villages from your Travian account!', 'success')
-                                logger.info(f"Villages extracted for user '{user['username']}': {villages_count}")
-                            else:
-                                flash(f"Villages could not be extracted: {extraction_result.get('message', 'Unknown error')}", 'warning')
-                                logger.warning(f"Village extraction failed for user '{user['username']}': {extraction_result.get('message', 'Unknown error')}")
-                        except ImportError:
-                            logger.warning("extract_villages_internal function not available")
-                            flash('Villages could not be extracted automatically. Please use the Extract Villages button on the Villages page.', 'warning')
-                    except Exception as e:
-                        logger.error(f"Error during village extraction: {e}")
-                        flash('Connection verified, but village extraction failed. Please try manually extracting villages.', 'warning')
-                else:
-                    flash(f"Settings saved but connection could not be verified: {connection_result.get('message', 'Unknown error')}", 'warning')
-                    logger.warning(f"Travian connection failed for user '{user['username']}': {connection_result.get('message', 'Unknown error')}")
-            except ImportError:
-                logger.warning("Travian API connector module not available, connection verification skipped")
-                flash('Settings saved. To verify your connection, please visit the Villages page and click "Extract Villages".', 'info')
-            except Exception as e:
-                logger.error(f"Error verifying Travian connection: {e}")
-                flash('Settings saved but there was an error verifying the connection', 'warning')
-            
-            # Log the activity
-            try:
-                from database.models.activity_log import ActivityLog
-                activity_model = ActivityLog()
-                
-                # Log different activity based on verification result
-                if connection_verified:
+                    # Log successful connection
+                    activity_model = ActivityLog()
                     activity_model.log_activity(
                         user_id=session['user_id'],
                         activity_type='travian-connection',
-                        details='Successfully connected to Travian account',
+                        details='Successfully connected to Travian account and extracted villages',
                         status='success',
                         data={
-                            'villages_extracted': villages_extracted,
                             'villages_count': villages_count
                         }
                     )
+                    
+                    # Now check for Gold Club membership after successful village extraction
+                    flash('Checking Gold Club membership...', 'info')
+                    
+                    # Get server URL with protocol
+                    server_url = travian_server
+                    if not server_url.startswith(('http://', 'https://')):
+                        server_url = f"https://{server_url}"
+                        
+                    # Verify Gold Club membership
+                    gold_result = verify_gold_club_membership(
+                        travian_username, 
+                        travian_password, 
+                        server_url
+                    )
+                    
+                    if gold_result['success']:
+                        # Update user's Gold Club status
+                        user_model.update_user(session['user_id'], {
+                            'travianCredentials.is_gold_member': gold_result['is_gold_member']
+                        })
+                        
+                        # Show appropriate message based on result
+                        if gold_result['is_gold_member']:
+                            flash('Gold Club membership confirmed!', 'success')
+                            
+                            # Log Gold Club membership
+                            activity_model.log_activity(
+                                user_id=session['user_id'],
+                                activity_type='gold-club-check',
+                                details='Gold Club membership confirmed',
+                                status='success'
+                            )
+                        else:
+                            flash('You are not a Gold Club member', 'warning')
+                            
+                            # Log non-Gold Club status
+                            activity_model.log_activity(
+                                user_id=session['user_id'],
+                                activity_type='gold-club-check',
+                                details='User is not a Gold Club member',
+                                status='info'
+                            )
+                    else:
+                        # Gold Club verification failed
+                        flash(f'Gold Club verification failed: {gold_result["message"]}', 'warning')
+                        
+                        # Log failure
+                        activity_model.log_activity(
+                            user_id=session['user_id'],
+                            activity_type='gold-club-check',
+                            details=f'Gold Club verification failed: {gold_result["message"]}',
+                            status='warning'
+                        )
                 else:
+                    flash(f"Your settings were saved but village extraction failed: {extraction_result.get('message', 'Unknown error')}", 'warning')
+                    logger.warning(f"Village extraction failed for user '{user['username']}': {extraction_result.get('message', 'Unknown error')}")
+                    
+                    # Log failed connection
+                    activity_model = ActivityLog()
+                    activity_model.log_activity(
+                        user_id=session['user_id'],
+                        activity_type='travian-connection',
+                        details=f"Failed to extract villages: {extraction_result.get('message', 'Unknown error')}",
+                        status='error'
+                    )
+            except Exception as e:
+                logger.error(f"Error during connection verification: {e}")
+                flash('Settings saved but there was an error verifying the connection', 'warning')
+                
+                # Log error
+                try:
+                    activity_model = ActivityLog()
                     activity_model.log_activity(
                         user_id=session['user_id'],
                         activity_type='travian-settings-update',
-                        details='Updated Travian account settings',
-                        status='success'
+                        details=f'Updated Travian settings but verification failed: {str(e)}',
+                        status='warning'
                     )
-            except Exception as e:
-                logger.error(f"Error logging activity: {e}")
+                except Exception as log_err:
+                    logger.error(f"Error logging activity: {log_err}")
         else:
             # Flash error message
             flash('Failed to update Travian account settings', 'danger')
@@ -268,12 +287,11 @@ def travian_settings():
         },
         'last_connection': 'Never',  # Default value
         'connection_verified': False,
-        'show_verify_button': True,
-        'villages_count': len(user.get('villages', []))
+        'villages_count': len(user.get('villages', [])),
+        'is_gold_member': user['travianCredentials'].get('is_gold_member', False)
     }
     
     try:
-        from database.models.activity_log import ActivityLog
         activity_model = ActivityLog()
         
         # Get latest connection activity
@@ -286,7 +304,6 @@ def travian_settings():
         if connection_log and connection_log.get('timestamp'):
             travian_settings['last_connection'] = connection_log['timestamp'].strftime('%Y-%m-%d %H:%M')
             travian_settings['connection_verified'] = connection_log.get('status') == 'success'
-            travian_settings['show_verify_button'] = False
     except Exception as e:
         logger.error(f"Error getting connection log: {e}")
     
