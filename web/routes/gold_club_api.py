@@ -148,7 +148,7 @@ def check_gold_club_membership(username, password, server_url):
     driver = None
     try:
         logger.info("Setting up WebDriver for Gold Club verification")
-        # Configure Chrome options
+        # Configure Chrome options - simple configuration without ChromeDriverManager
         chrome_options = Options()
         chrome_options.add_argument("--headless")
         chrome_options.add_argument("--no-sandbox")
@@ -156,17 +156,13 @@ def check_gold_club_membership(username, password, server_url):
         chrome_options.add_argument("--disable-gpu")
         chrome_options.add_argument("--window-size=1920,1080")
         
-        # Initialize the WebDriver
+        # Initialize the WebDriver directly without ChromeDriverManager
         try:
-            from selenium.webdriver.chrome.service import Service
-            from webdriver_manager.chrome import ChromeDriverManager
-            
-            logger.info("Using ChromeDriverManager to setup WebDriver")
-            service = Service(ChromeDriverManager().install())
-            driver = webdriver.Chrome(service=service, options=chrome_options)
-        except Exception as e:
-            logger.warning(f"Error with ChromeDriverManager: {e}, trying direct Chrome initialization")
+            logger.info("Using direct Chrome initialization")
             driver = webdriver.Chrome(options=chrome_options)
+        except Exception as e:
+            logger.error(f"Error initializing Chrome: {e}")
+            return False
         
         # Set page load timeout
         driver.set_page_load_timeout(30)
@@ -221,7 +217,7 @@ def check_gold_club_membership(username, password, server_url):
             if "dorf1.php" in driver.current_url or "village" in driver.current_url or "game.php" in driver.current_url:
                 logger.info(f"Successfully logged in to Travian account for {username}")
                 
-                # Navigate to cropfinder.php
+                # Navigate to cropfinder.php (which is only accessible to Gold Club members)
                 cropfinder_url = f"{server_url}/cropfinder.php"
                 logger.info(f"Navigating to cropfinder: {cropfinder_url}")
                 driver.get(cropfinder_url)
@@ -230,14 +226,15 @@ def check_gold_club_membership(username, password, server_url):
                 # Check if content div has any children
                 try:
                     logger.info("Looking for cropfinder content div")
-                    content_div = driver.find_element(By.CSS_SELECTOR, "div.contentContainer div#content.cropfinder")
+                    # Try different selectors that might indicate Gold Club content
+                    content_div = driver.find_element(By.ID, "content")
                     
                     # Log the HTML content for debugging
                     html_content = content_div.get_attribute("innerHTML").strip()
                     logger.info(f"Cropfinder content HTML: {html_content[:100]}...")  # Log first 100 chars
                     
-                    # Check if the content div is empty
-                    if html_content:
+                    # Check if the content is not empty
+                    if html_content and ("cropfinder" in html_content.lower() or len(html_content) > 50):
                         logger.info(f"User {username} is a Gold Club member, content found")
                         return True
                     else:

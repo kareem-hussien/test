@@ -17,8 +17,6 @@ from web.utils.context_processors import register_context_processors
 from web.maintenance import register_maintenance_middleware
 from web.routes.gold_club_api import register_routes as register_gold_club_api_routes
 
-
-
 def create_app(config_object=None):
     """
     Create and configure the Flask application.
