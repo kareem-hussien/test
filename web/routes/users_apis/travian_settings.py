@@ -24,6 +24,8 @@ def register_routes(user_bp):
     """Register travian settings routes with the user blueprint."""
     # Attach routes to the blueprint
     user_bp.route('/travian-settings', methods=['GET', 'POST'])(login_required(travian_settings))
+    user_bp.route('/disconnect-travian', methods=['POST'])(login_required(disconnect_travian))
+
 
 def is_travian_account_registered(username, server, exclude_user_id=None):
     """
@@ -292,3 +294,52 @@ def travian_settings():
         current_user=user, 
         title='Travian Settings'
     )
+    
+@login_required
+def disconnect_travian():
+    """Disconnect Travian account route."""
+    # Get user data
+    user_model = User()
+    user = user_model.get_user_by_id(session['user_id'])
+    
+    if not user:
+        # Flash error message
+        flash('User not found', 'danger')
+        
+        # Clear session and redirect to login
+        session.clear()
+        return redirect(url_for('auth.login'))
+    
+    # Create empty travian credentials
+    empty_credentials = {
+        'username': '',
+        'password': '',
+        'server': '',
+        'tribe': '',
+        'is_gold_member': False
+    }
+    
+    # Update user in database
+    if user_model.update_user(session['user_id'], {'travianCredentials': empty_credentials}):
+        # Also clear villages
+        user_model.update_villages(session['user_id'], [])
+        
+        # Log the activity
+        activity_model = ActivityLog()
+        activity_model.log_activity(
+            user_id=session['user_id'],
+            activity_type='travian-disconnect',
+            details='Travian account disconnected successfully',
+            status='success'
+        )
+        
+        # Flash success message
+        flash('Travian account disconnected successfully', 'success')
+        logger.info(f"User '{user['username']}' disconnected Travian account")
+    else:
+        # Flash error message
+        flash('Failed to disconnect Travian account', 'danger')
+        logger.warning(f"Failed to disconnect Travian account for user '{user['username']}'")
+    
+    # Redirect back to travian settings
+    return redirect(url_for('user.travian_settings'))
