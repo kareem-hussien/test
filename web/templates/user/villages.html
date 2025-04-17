@@ -25,10 +25,10 @@
     {% endwith %}
     
     <!-- Villages List Section -->
-    {% include 'user/villages/villages_list.html' %}
+    {% include 'user/components/villages/villages_list.html' %}
     
     <!-- Villages Stats Section -->
-    {% include 'user/villages/villages_stats.html' %}
+    {% include 'user/components/villages/villages_stats.html' %}
 </div>
 
 <!-- Make villages data available for JavaScript -->
@@ -39,11 +39,11 @@
 <input type="hidden" id="villagesData" value="{{ villages|tojson|safe }}">
 
 <!-- Include modal components -->
-{% include 'user/villages/modals/village_details_modal.html' %}
-{% include 'user/villages/modals/edit_village_modal.html' %}
-{% include 'user/villages/modals/add_village_modal.html' %}
-{% include 'user/villages/modals/extract_villages_modal.html' %}
-{% include 'user/villages/modals/remove_village_modal.html' %}
+{% include 'user/components/villages/modals/village_details_modal.html' %}
+{% include 'user/components/villages/modals/edit_village_modal.html' %}
+{% include 'user/components/villages/modals/add_village_modal.html' %}
+{% include 'user/components/villages/modals/extract_villages_modal.html' %}
+{% include 'user/components/villages/modals/remove_village_modal.html' %}
 
 {% endblock %}
 

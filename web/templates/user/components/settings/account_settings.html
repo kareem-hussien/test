@@ -1,0 +1,56 @@
+<!-- Travian Account Settings -->
+<div class="col-lg-8 mb-4">
+    <div class="dashboard-card">
+        <h4 class="mb-4">Travian Account Settings</h4>
+        
+        <form action="{{ url_for('user.travian_settings') }}" method="post">
+            {% if csrf_token %}
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            {% endif %}
+            
+            <div class="mb-3">
+                <label for="travian_username" class="form-label">Travian Username</label>
+                <input type="text" class="form-control" id="travian_username" name="travian_username" 
+                       value="{{ user_profile.travian_credentials.username }}" required>
+                <small class="form-text text-muted">Your Travian game account username</small>
+            </div>
+            
+            <div class="mb-3">
+                <label for="travian_password" class="form-label">Travian Password</label>
+                <input type="password" class="form-control" id="travian_password" name="travian_password" 
+                       value="{{ user_profile.travian_credentials.password }}" required>
+                <small class="form-text text-muted">Your password is securely encrypted in our database</small>
+            </div>
+            
+            <div class="mb-3">
+                <label for="travian_server" class="form-label">Travian Server</label>
+                <input type="text" class="form-control" id="travian_server" name="travian_server" 
+                       value="{{ user_profile.travian_credentials.server }}" 
+                       placeholder="https://ts1.x1.international.travian.com">
+                <small class="form-text text-muted">The URL of your Travian game server</small>
+            </div>
+            
+            <div class="mb-3">
+                <label for="travian_tribe" class="form-label">Tribe</label>
+                <select class="form-select" id="travian_tribe" name="travian_tribe">
+                    <option value="">Select your tribe</option>
+                    <option value="romans" {% if user_profile.travian_credentials.tribe == 'romans' %}selected{% endif %}>Romans</option>
+                    <option value="gauls" {% if user_profile.travian_credentials.tribe == 'gauls' %}selected{% endif %}>Gauls</option>
+                    <option value="teutons" {% if user_profile.travian_credentials.tribe == 'teutons' %}selected{% endif %}>Teutons</option>
+                    <option value="egyptians" {% if user_profile.travian_credentials.tribe == 'egyptians' %}selected{% endif %}>Egyptians</option>
+                    <option value="huns" {% if user_profile.travian_credentials.tribe == 'huns' %}selected{% endif %}>Huns</option>
+                </select>
+                <small class="form-text text-muted">Select your tribe for proper troop training configuration</small>
+            </div>
+            
+            <div class="alert alert-info">
+                <i class="bi bi-info-circle-fill me-2"></i>
+                When you save your Travian credentials, we'll automatically verify your connection, extract your villages, and check your Gold Club membership.
+            </div>
+            
+            <button type="submit" class="btn btn-primary">
+                <i class="bi bi-save me-2"></i>Save Settings
+            </button>
+        </form>
+    </div>
+</div>

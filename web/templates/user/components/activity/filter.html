@@ -1,0 +1,50 @@
+<!-- Filters Section -->
+ <div class="row mb-4">
+    <div class="col-12">
+        <div class="dashboard-card">
+            <h5 class="mb-3">Filters</h5>
+            <form id="filterForm" method="get" action="{{ url_for('user.activity_logs') }}">
+                <div class="row g-3">
+                    <div class="col-md-3">
+                        <label for="type" class="form-label">Activity Type</label>
+                        <select class="form-select" id="type" name="type">
+                            <option value="">All Activities</option>
+                            <option value="auto-farm" {% if filters.type == 'auto-farm' %}selected{% endif %}>Auto-Farm</option>
+                            <option value="troop-training" {% if filters.type == 'troop-training' %}selected{% endif %}>Troop Training</option>
+                            <option value="login" {% if filters.type == 'login' %}selected{% endif %}>Login</option>
+                            <option value="village-update" {% if filters.type == 'village-update' %}selected{% endif %}>Village Update</option>
+                            <option value="profile-update" {% if filters.type == 'profile-update' %}selected{% endif %}>Profile Update</option>
+                            <option value="system" {% if filters.type == 'system' %}selected{% endif %}>System</option>
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <label for="status" class="form-label">Status</label>
+                        <select class="form-select" id="status" name="status">
+                            <option value="">All Statuses</option>
+                            <option value="success" {% if filters.status == 'success' %}selected{% endif %}>Success</option>
+                            <option value="warning" {% if filters.status == 'warning' %}selected{% endif %}>Warning</option>
+                            <option value="error" {% if filters.status == 'error' %}selected{% endif %}>Error</option>
+                            <option value="info" {% if filters.status == 'info' %}selected{% endif %}>Info</option>
+                        </select>
+                    </div>
+                    <div class="col-md-4">
+                        <label for="village" class="form-label">Village</label>
+                        <select class="form-select" id="village" name="village">
+                            <option value="">All Villages</option>
+                            {% for village in current_user.villages %}
+                            <option value="{{ village.name }}" {% if filters.village == village.name %}selected{% endif %}>
+                                {{ village.name }} ({{ village.x }}|{{ village.y }})
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-2 d-flex align-items-end">
+                        <button type="submit" class="btn btn-primary w-100">
+                            <i class="bi bi-filter me-2"></i>Apply Filters
+                        </button>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>

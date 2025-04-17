@@ -1,0 +1,51 @@
+<!-- Statistics Cards -->
+ <div class="row mb-4">
+    <div class="col-md-3 mb-4 mb-md-0">
+        {% with 
+            icon='activity',
+            icon_bg='bg-primary-light',
+            title='Total Activities',
+            value=stats.total,
+            subtitle='All time'
+        %}
+            {% include 'user/components/stat_card.html' %}
+        {% endwith %}
+    </div>
+    
+    <div class="col-md-3 mb-4 mb-md-0">
+        {% set success_rate = ((stats.success / stats.total) * 100)|round|int ~ '% success rate' if stats.success|default(0) > 0 else 'No activities yet' %}
+        {% with 
+            icon='check-circle',
+            icon_bg='bg-success-light',
+            title='Successful Operations',
+            value=stats.success,
+            subtitle=success_rate
+        %}
+            {% include 'user/components/stat_card.html' %}
+        {% endwith %}
+    </div>
+    
+    <div class="col-md-3 mb-4 mb-md-0">
+        {% with 
+            icon='robot',
+            icon_bg='bg-warning-light',
+            title='Auto-Farm Events',
+            value=stats.auto_farm,
+            subtitle='Resource collections'
+        %}
+            {% include 'user/components/stat_card.html' %}
+        {% endwith %}
+    </div>
+    
+    <div class="col-md-3">
+        {% with 
+            icon='shield',
+            icon_bg='bg-danger-light',
+            title='Training Events',
+            value=stats.training,
+            subtitle='Troop trainings'
+        %}
+            {% include 'user/components/stat_card.html' %}
+        {% endwith %}
+    </div>
+</div>
