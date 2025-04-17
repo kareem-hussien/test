@@ -14,6 +14,7 @@ from bson import ObjectId
 from web.utils.decorators import login_required, api_error_handler
 from database.models.user import User
 from database.models.activity_log import ActivityLog
+from web.utils.gold_club import check_gold_club_membership
 
 # Initialize logger
 logger = logging.getLogger(__name__)
@@ -251,6 +252,11 @@ def extract_villages_internal(user_id):
             for idx, village in enumerate(extracted_villages):
                 logger.info(f"Village {idx+1}: {village['name']} ({village['x']}|{village['y']})")
                 
+            # Check for Gold Club membership
+            logger.info("Checking Gold Club membership")
+            is_gold_member = check_gold_club_membership(driver)
+            logger.info(f"Gold Club membership status: {is_gold_member}")
+            
         except Exception as e:
             logger.error(f"Error extracting villages: {str(e)}", exc_info=True)
             if driver:
@@ -305,7 +311,8 @@ def extract_villages_internal(user_id):
             return {
                 'success': True,
                 'message': f'Successfully extracted {len(extracted_villages)} villages',
-                'data': extracted_villages
+                'data': extracted_villages,
+                'gold_club_check': is_gold_member
             }
         else:
             logger.warning(f"Failed to save extracted villages for user '{user['username']}'")

@@ -1,5 +1,5 @@
 """
-Updated Travian settings module with automatic village extraction and Gold Club verification.
+Updated Travian settings module with automatic village extraction and simplified Gold Club verification.
 """
 import logging
 
@@ -15,7 +15,7 @@ from database.models.activity_log import ActivityLog
 from web.routes.users_apis.villages import extract_villages_internal
 
 # Import Gold Club verification function
-from web.utils.gold_club import verify_gold_club_membership
+from web.utils.gold_club import check_gold_club_membership
 
 # Initialize logger
 logger = logging.getLogger(__name__)
@@ -191,29 +191,18 @@ def travian_settings():
                         }
                     )
                     
-                    # Now check for Gold Club membership after successful village extraction
-                    flash('Checking Gold Club membership...', 'info')
-                    
-                    # Get server URL with protocol
-                    server_url = travian_server
-                    if not server_url.startswith(('http://', 'https://')):
-                        server_url = f"https://{server_url}"
+                    # Now check for Gold Club membership using the driver from the village extraction
+                    # The driver object is not directly accessible, so we need to add code to the extraction process
+                    if 'gold_club_check' in extraction_result:
+                        is_gold_member = extraction_result.get('gold_club_check', False)
                         
-                    # Verify Gold Club membership
-                    gold_result = verify_gold_club_membership(
-                        travian_username, 
-                        travian_password, 
-                        server_url
-                    )
-                    
-                    if gold_result['success']:
                         # Update user's Gold Club status
                         user_model.update_user(session['user_id'], {
-                            'travianCredentials.is_gold_member': gold_result['is_gold_member']
+                            'travianCredentials.is_gold_member': is_gold_member
                         })
                         
                         # Show appropriate message based on result
-                        if gold_result['is_gold_member']:
+                        if is_gold_member:
                             flash('Gold Club membership confirmed!', 'success')
                             
                             # Log Gold Club membership
@@ -224,7 +213,7 @@ def travian_settings():
                                 status='success'
                             )
                         else:
-                            flash('You are not a Gold Club member', 'warning')
+                            flash('You are not a Gold Club member. Some premium features may be unavailable.', 'warning')
                             
                             # Log non-Gold Club status
                             activity_model.log_activity(
@@ -233,17 +222,6 @@ def travian_settings():
                                 details='User is not a Gold Club member',
                                 status='info'
                             )
-                    else:
-                        # Gold Club verification failed
-                        flash(f'Gold Club verification failed: {gold_result["message"]}', 'warning')
-                        
-                        # Log failure
-                        activity_model.log_activity(
-                            user_id=session['user_id'],
-                            activity_type='gold-club-check',
-                            details=f'Gold Club verification failed: {gold_result["message"]}',
-                            status='warning'
-                        )
                 else:
                     flash(f"Your settings were saved but village extraction failed: {extraction_result.get('message', 'Unknown error')}", 'warning')
                     logger.warning(f"Village extraction failed for user '{user['username']}': {extraction_result.get('message', 'Unknown error')}")
