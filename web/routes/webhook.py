@@ -1,13 +1,13 @@
 """
-Enhanced PayPal webhook handling for Travian Whispers.
-This module provides improved webhook processing for subscription events.
+Fixed webhook module for Travian Whispers web application.
+This module handles webhooks from payment providers.
 """
 import logging
 import json
+from bson import ObjectId
 from datetime import datetime
-from flask import request, jsonify, Blueprint
+from flask import Blueprint, request, jsonify
 
-from web.utils.decorators import api_error_handler
 from database.models.transaction import Transaction
 from database.models.user import User
 from database.models.activity_log import ActivityLog
@@ -20,12 +20,11 @@ logger = logging.getLogger(__name__)
 webhook_bp = Blueprint('webhooks', __name__, url_prefix='/webhooks')
 
 @webhook_bp.route('/paypal', methods=['POST'])
-@api_error_handler
 def paypal_webhook():
     """Webhook endpoint for PayPal payment notifications."""
     logger.info("Received PayPal webhook")
     
-    # Verify webhook signature if enabled
+    # Verify webhook signature
     if not verify_webhook_signature(request.data, request.headers):
         logger.warning("Invalid PayPal webhook signature")
         return jsonify({
@@ -37,8 +36,10 @@ def paypal_webhook():
     try:
         event_data = request.get_json()
         
-        # Log the webhook data (sanitize sensitive information in production)
-        logger.debug(f"PayPal webhook data: {json.dumps(event_data)}")
+        # Log the webhook data (sanitized for sensitive info)
+        webhook_type = event_data.get('event_type', 'unknown')
+        webhook_id = event_data.get('id', 'unknown')
+        logger.info(f"Processing PayPal webhook: Type={webhook_type}, ID={webhook_id}")
         
         # Extract event type
         event_type = event_data.get('event_type')
@@ -215,11 +216,6 @@ def handle_payment_denied(event_data):
             'message': f'Error processing payment denial: {str(e)}'
         }), 500
 
-"""
-This fixes the payment refunded handler in the webhook module to handle missing update_subscription_status method.
-Replace the relevant portion in the webhook handler.
-"""
-
 def handle_payment_refunded(event_data):
     """
     Handle PAYMENT.CAPTURE.REFUNDED event.
@@ -277,10 +273,8 @@ def handle_payment_refunded(event_data):
                     try:
                         if hasattr(user_model, 'cancel_subscription'):
                             user_model.cancel_subscription(str(transaction['userId']))
-                        elif hasattr(user_model, 'update_subscription_status'):
-                            user_model.update_subscription_status(str(transaction['userId']), 'cancelled')
                         else:
-                            # Direct update if methods not available
+                            # Direct update if method not available
                             user_model.collection.update_one(
                                 {'_id': ObjectId(str(transaction['userId']))},
                                 {'$set': {
@@ -322,7 +316,7 @@ def handle_payment_refunded(event_data):
             'success': False,
             'message': f'Error processing payment refund: {str(e)}'
         }), 500
-        
+
 def handle_subscription_cancelled(event_data):
     """
     Handle BILLING.SUBSCRIPTION.CANCELLED event.
@@ -406,7 +400,3 @@ def handle_subscription_expired(event_data):
             'success': False,
             'message': f'Error processing subscription expiration: {str(e)}'
         }), 500
-
-def register_webhook_routes(app):
-    """Register webhook routes with the application."""
-    app.register_blueprint(webhook_bp)

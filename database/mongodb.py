@@ -1,5 +1,5 @@
 """
-MongoDB connection and management module.
+MongoDB connection and management module with improved error handling.
 """
 import pymongo
 from pymongo import MongoClient
@@ -9,7 +9,8 @@ import config
 from database.error_handler import (
     handle_connection_error, 
     handle_operation_error,
-    log_database_activity
+    log_database_activity,
+    ConnectionError
 )
 
 # Configure logger
@@ -59,10 +60,10 @@ class MongoDB:
                 serverSelectionTimeoutMS=5000,
                 connectTimeoutMS=10000,
                 socketTimeoutMS=45000,
-                maxPoolSize=50,  # Make sure there's a comma here
+                maxPoolSize=50,
                 waitQueueTimeoutMS=2500,
                 retryWrites=True,
-                retryReads=True,  # Make sure there's no comma after the last parameter
+                retryReads=True,
                 tz_aware=True
             )
             # Ping the server to test connection
@@ -75,7 +76,7 @@ class MongoDB:
             self.client = None
             self.db = None
             # Re-raise to let the decorator handle it
-            raise
+            raise ConnectionError(f"MongoDB connection error: {str(e)}", e)
     
     def get_db(self):
         """
@@ -85,7 +86,7 @@ class MongoDB:
             pymongo.database.Database: Database instance or None if not connected
         """
         if self.client is None or self.db is None:
-            logger.warning("Database not connected. Call connect() first.")
+            logger.warning("Database not connected. Attempting to connect...")
             try:
                 # Attempt to connect if not already connected
                 self.connect()
@@ -142,6 +143,40 @@ class MongoDB:
             db.transactions.create_index([("createdAt", pymongo.DESCENDING)])
             db.transactions.create_index([("status", pymongo.ASCENDING)])
             
+            # Activity logs indexes
+            db.activity_logs.create_index([("userId", pymongo.ASCENDING)])
+            db.activity_logs.create_index([("timestamp", pymongo.DESCENDING)])
+            db.activity_logs.create_index([("activityType", pymongo.ASCENDING)])
+            
+            # System logs indexes
+            db.system_logs.create_index([("timestamp", pymongo.DESCENDING)])
+            db.system_logs.create_index([("level", pymongo.ASCENDING)])
+            
+            # FAQ indexes
+            db.faq.create_index([("category", pymongo.ASCENDING)])
+            db.faq.create_index([("order", pymongo.ASCENDING)])
+            
+            # Settings indexes
+            db.settings.create_index([("key", pymongo.ASCENDING)], unique=True)
+            
+            # IP addresses indexes
+            if "ipAddresses" in db.list_collection_names():
+                db.ipAddresses.create_index([("ip_address", pymongo.ASCENDING)], unique=True)
+                db.ipAddresses.create_index([("status", pymongo.ASCENDING)])
+                db.ipAddresses.create_index([("assigned_users", pymongo.ASCENDING)])
+            
+            # Proxy services indexes
+            if "proxyServices" in db.list_collection_names():
+                db.proxyServices.create_index([("name", pymongo.ASCENDING)], unique=True)
+            
+            # Auto farm configurations indexes
+            if "auto_farm_configurations" in db.list_collection_names():
+                db.auto_farm_configurations.create_index([("userId", pymongo.ASCENDING)], unique=True)
+            
+            # Trainer configurations indexes
+            if "trainer_configurations" in db.list_collection_names():
+                db.trainer_configurations.create_index([("userId", pymongo.ASCENDING)], unique=True)
+            
             logger.info("All database indexes created successfully")
             return True
         except Exception as e:
@@ -156,6 +191,26 @@ class MongoDB:
             self.client = None
             self.db = None
             logger.info("Disconnected from MongoDB")
+    
+    def test_connection(self):
+        """
+        Test the MongoDB connection.
+        
+        Returns:
+            bool: True if connection is working, False otherwise
+        """
+        if self.client is None:
+            logger.warning("Client not initialized")
+            return False
+            
+        try:
+            # Ping the server to test connection
+            self.client.admin.command('ping')
+            logger.info("MongoDB connection test successful")
+            return True
+        except Exception as e:
+            logger.error(f"MongoDB connection test failed: {e}")
+            return False
     
     def __enter__(self):
         """Context manager enter."""

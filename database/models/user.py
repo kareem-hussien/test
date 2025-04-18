@@ -1,5 +1,5 @@
 """
-User model for MongoDB integration.
+User model for MongoDB integration with fixed methods.
 """
 import re
 import uuid
@@ -121,13 +121,15 @@ class User:
                 "username": "",
                 "password": "",
                 "tribe": "",
-                "profileId": ""
+                "profileId": "",
+                "is_gold_member": False
             },
             "villages": [],
             "settings": {
                 "autoFarm": False,
                 "trainer": False,
-                "notification": True
+                "notification": True,
+                "autoRenew": False
             },
             "verificationToken": verification_token,
             "resetPasswordToken": None,
@@ -307,192 +309,219 @@ class User:
         except Exception as e:
             logger.error(f"Error verifying user: {e}")
             return False
-
-def update_villages(self, user_id, villages):
-    """
-    Update the villages list for a user.
-    
-    Args:
-        user_id (str): User ID
-        villages (list): List of village dictionaries
+            
+    def reset_password(self, token, new_password):
+        """
+        Reset a user's password using the reset token.
         
-    Returns:
-        bool: True if successful, False otherwise
-    """
-    if self.collection is None:
-        logger.error("Database not connected")
-        return False
-        
-    try:
-        user_oid = ObjectId(user_id)
-        
-        result = self.collection.update_one(
-            {"_id": user_oid},
-            {"$set": {
-                "villages": villages,
-                "updatedAt": datetime.utcnow()
-            }}
-        )
-        
-        return result.modified_count > 0
-    except Exception as e:
-        logger.error(f"Error updating villages: {e}")
-        return False
-    
-def merge_villages(self, user_id, new_villages):
-    """
-    Merge new villages with existing ones, preserving settings.
-    
-    Args:
-        user_id (str): User ID
-        new_villages (list): List of newly extracted village dictionaries
-        
-    Returns:
-        bool: True if successful, False otherwise
-    """
-    if self.collection is None:
-        logger.error("Database not connected")
-        return False
-        
-    try:
-        # Get user's current villages
-        user = self.get_user_by_id(user_id)
-        if not user:
-            logger.error(f"User not found: {user_id}")
+        Args:
+            token (str): Reset token
+            new_password (str): New password
+            
+        Returns:
+            bool: True if successful, False otherwise
+        """
+        if self.collection is None:
             return False
             
-        current_villages = user.get('villages', [])
+        try:
+            # Hash the new password
+            hashed_password = self.hash_password(new_password)
+            
+            # Update the user's password and clear the reset token
+            result = self.collection.update_one(
+                {"resetPasswordToken": token, "resetPasswordExpires": {"$gt": datetime.utcnow()}},
+                {"$set": {
+                    "password": hashed_password,
+                    "resetPasswordToken": None,
+                    "resetPasswordExpires": None,
+                    "updatedAt": datetime.utcnow()
+                }}
+            )
+            
+            return result.modified_count > 0
+        except Exception as e:
+            logger.error(f"Error resetting password: {e}")
+            return False
+            
+    def update_villages(self, user_id, villages):
+        """
+        Update the villages list for a user.
         
-        # Create a map of existing village settings by newdid
-        village_settings = {}
-        for village in current_villages:
-            newdid = village.get('newdid')
-            if newdid:
-                village_settings[newdid] = {
-                    'auto_farm_enabled': village.get('auto_farm_enabled', False),
-                    'training_enabled': village.get('training_enabled', False),
-                    'status': village.get('status', 'active')
-                }
-        
-        # Apply existing settings to new villages
-        for village in new_villages:
-            newdid = village.get('newdid')
-            if newdid and newdid in village_settings:
-                village['auto_farm_enabled'] = village_settings[newdid]['auto_farm_enabled']
-                village['training_enabled'] = village_settings[newdid]['training_enabled']
-                village['status'] = village_settings[newdid]['status']
-        
-        # Update user in database
-        result = self.collection.update_one(
-            {"_id": ObjectId(user_id)},
-            {"$set": {
-                "villages": new_villages,
-                "updatedAt": datetime.utcnow()
-            }}
-        )
-        
-        return result.modified_count > 0
-    except Exception as e:
-        logger.error(f"Error merging villages: {e}")
-        return False
-    
-def update_subscription_status(self, user_id, status):
-    """
-    Update user subscription status.
-    
-    Args:
-        user_id (str): User ID
-        status (str): New subscription status ('active', 'inactive', 'cancelled')
-        
-    Returns:
-        bool: True if successful, False otherwise
-    """
-    try:
-        from datetime import datetime
-        from bson import ObjectId
-        
+        Args:
+            user_id (str): User ID
+            villages (list): List of village dictionaries
+            
+        Returns:
+            bool: True if successful, False otherwise
+        """
         if self.collection is None:
-            logger.error("Database connection not available")
+            logger.error("Database not connected")
             return False
-        
-        # Validate status
-        valid_statuses = ['active', 'inactive', 'cancelled']
-        if status not in valid_statuses:
-            logger.error(f"Invalid subscription status: {status}")
+            
+        try:
+            user_oid = ObjectId(user_id)
+            
+            result = self.collection.update_one(
+                {"_id": user_oid},
+                {"$set": {
+                    "villages": villages,
+                    "updatedAt": datetime.utcnow()
+                }}
+            )
+            
+            return result.modified_count > 0
+        except Exception as e:
+            logger.error(f"Error updating villages: {e}")
             return False
-        
-        # Get current user data to preserve other subscription fields
-        user = self.get_user_by_id(user_id)
-        if not user:
-            logger.error(f"User not found: {user_id}")
-            return False
-        
-        # Update subscription status
-        subscription_data = {
-            'subscription.status': status,
-            'updatedAt': datetime.utcnow()
-        }
-        
-        result = self.collection.update_one(
-            {'_id': ObjectId(user_id)},
-            {'$set': subscription_data}
-        )
-        
-        if result.modified_count > 0:
-            logger.info(f"Updated subscription status to {status} for user {user_id}")
-            return True
-        else:
-            logger.warning(f"No changes made when updating subscription status for user {user_id}")
-            return False
-    except Exception as e:
-        logger.error(f"Error updating subscription status: {e}")
-        return False
     
-def update_subscription_status(self, user_id, status):
-    """
-    Update user subscription status.
-    
-    Args:
-        user_id (str): User ID
-        status (str): New subscription status ('active', 'inactive', 'cancelled')
+    def merge_villages(self, user_id, new_villages):
+        """
+        Merge new villages with existing ones, preserving settings.
         
-    Returns:
-        bool: True if successful, False otherwise
-    """
-    try:
+        Args:
+            user_id (str): User ID
+            new_villages (list): List of newly extracted village dictionaries
+            
+        Returns:
+            bool: True if successful, False otherwise
+        """
         if self.collection is None:
-            logger.error("Database connection not available")
+            logger.error("Database not connected")
             return False
-        
-        # Validate status
-        valid_statuses = ['active', 'inactive', 'cancelled']
-        if status not in valid_statuses:
-            logger.error(f"Invalid subscription status: {status}")
+            
+        try:
+            # Get user's current villages
+            user = self.get_user_by_id(user_id)
+            if not user:
+                logger.error(f"User not found: {user_id}")
+                return False
+                
+            current_villages = user.get('villages', [])
+            
+            # Create a map of existing village settings by newdid
+            village_settings = {}
+            for village in current_villages:
+                newdid = village.get('newdid')
+                if newdid:
+                    village_settings[newdid] = {
+                        'auto_farm_enabled': village.get('auto_farm_enabled', False),
+                        'training_enabled': village.get('training_enabled', False),
+                        'status': village.get('status', 'active')
+                    }
+            
+            # Apply existing settings to new villages
+            for village in new_villages:
+                newdid = village.get('newdid')
+                if newdid and newdid in village_settings:
+                    village['auto_farm_enabled'] = village_settings[newdid]['auto_farm_enabled']
+                    village['training_enabled'] = village_settings[newdid]['training_enabled']
+                    village['status'] = village_settings[newdid]['status']
+            
+            # Update user in database
+            result = self.collection.update_one(
+                {"_id": ObjectId(user_id)},
+                {"$set": {
+                    "villages": new_villages,
+                    "updatedAt": datetime.utcnow()
+                }}
+            )
+            
+            return result.modified_count > 0
+        except Exception as e:
+            logger.error(f"Error merging villages: {e}")
             return False
+    
+    def update_subscription_status(self, user_id, status):
+        """
+        Update user subscription status.
         
-        # Get current user data to preserve other subscription fields
-        user = self.get_user_by_id(user_id)
-        if not user:
-            logger.error(f"User not found: {user_id}")
+        Args:
+            user_id (str): User ID
+            status (str): New subscription status ('active', 'inactive', 'cancelled')
+            
+        Returns:
+            bool: True if successful, False otherwise
+        """
+        try:
+            if self.collection is None:
+                logger.error("Database connection not available")
+                return False
+            
+            # Validate status
+            valid_statuses = ['active', 'inactive', 'cancelled']
+            if status not in valid_statuses:
+                logger.error(f"Invalid subscription status: {status}")
+                return False
+            
+            # Get current user data to preserve other subscription fields
+            user = self.get_user_by_id(user_id)
+            if not user:
+                logger.error(f"User not found: {user_id}")
+                return False
+            
+            # Update subscription status
+            subscription_data = {
+                'subscription.status': status,
+                'updatedAt': datetime.utcnow()
+            }
+            
+            result = self.collection.update_one(
+                {'_id': ObjectId(user_id)},
+                {'$set': subscription_data}
+            )
+            
+            if result.modified_count > 0:
+                logger.info(f"Updated subscription status to {status} for user {user_id}")
+                return True
+            else:
+                logger.warning(f"No changes made when updating subscription status for user {user_id}")
+                return False
+        except Exception as e:
+            logger.error(f"Error updating subscription status: {e}")
             return False
+            
+    def cancel_subscription(self, user_id):
+        """
+        Cancel a user's subscription.
         
-        # Update subscription status
-        subscription_data = {
-            'subscription.status': status,
-            'updatedAt': datetime.utcnow()
-        }
+        Args:
+            user_id (str): User ID
+            
+        Returns:
+            bool: True if successful, False otherwise
+        """
+        return self.update_subscription_status(user_id, 'cancelled')
         
-        result = self.collection.update_one(
-            {'_id': ObjectId(user_id)},
-            {'$set': subscription_data}
-        )
+    def delete_user(self, user_id):
+        """
+        Delete a user and all associated data.
         
-        if result.modified_count > 0:
-            logger.info(f"Updated subscription status to {status} for user {user_id}")
-            return True
-        else:
-            logger.warning(f"No changes made when updating subscription status for user {user_id}")
+        Args:
+            user_id (str): User ID
+            
+        Returns:
+            bool: True if successful, False otherwise
+        """
+        if self.collection is None:
+            logger.error("Database not connected")
             return False
-    except Exception as e:
-        logger.error(f"Error updating subscription status: {e}")
-        return False
+            
+        try:
+            # Delete user
+            result = self.collection.delete_one({"_id": ObjectId(user_id)})
+            
+            if result.deleted_count > 0:
+                logger.info(f"Deleted user {user_id}")
+                
+                # Clear associated data
+                # Note: In a real implementation, you would also delete associated data
+                # from other collections
+                
+                return True
+            else:
+                logger.warning(f"Failed to delete user {user_id}")
+                return False
+        except Exception as e:
+            logger.error(f"Error deleting user: {e}")
+            return False

@@ -1,9 +1,8 @@
 """
-User profile routes for Travian Whispers web application.
+Fixed User profile routes for Travian Whispers web application.
 """
 import logging
-from datetime import timezone
-from datetime import datetime
+from datetime import datetime, timezone
 from flask import (
     render_template, request, redirect, 
     url_for, flash, session, current_app
@@ -22,6 +21,12 @@ def register_routes(user_bp):
     """Register profile routes with the user blueprint."""
     # Attach routes to the blueprint
     user_bp.route('/profile', methods=['GET', 'POST'])(login_required(profile))
+    
+    # Add API route for profile update
+    user_bp.route('/api/user/profile/update', methods=['POST'])(login_required(update_profile_api))
+    
+    # Add route for account deletion
+    user_bp.route('/profile/delete-account', methods=['GET', 'POST'])(login_required(delete_account))
 
 @login_required
 def profile():
@@ -135,7 +140,13 @@ def profile():
     
     # Get account age in days
     utcnow_aware = datetime.utcnow().replace(tzinfo=timezone.utc)
-    account_age_days = (utcnow_aware - user['createdAt']).days
+    account_age_days = 0
+    if isinstance(user['createdAt'], datetime):
+        # Make sure createdAt has timezone info for comparison
+        created_at = user['createdAt']
+        if not created_at.tzinfo:
+            created_at = created_at.replace(tzinfo=timezone.utc)
+        account_age_days = (utcnow_aware - created_at).days
     
     # Prepare user profile data
     user_profile = {
@@ -155,7 +166,7 @@ def profile():
             'account_age': account_age_days,
             'activities': activity_count,
             'last_login': last_login_date or user.get('lastLoginAt', 'Never'),
-            'villages_count': len(user['villages'])
+            'villages_count': len(user.get('villages', []))
         }
     }
     
@@ -165,4 +176,136 @@ def profile():
         user_profile=user_profile,
         current_user=user, 
         title='Profile Settings'
+    )
+
+@login_required
+def update_profile_api():
+    """API endpoint to update user profile."""
+    # Get user data
+    user_model = User()
+    user = user_model.get_user_by_id(session['user_id'])
+    
+    if not user:
+        from flask import jsonify
+        return jsonify({
+            'success': False,
+            'message': 'User not found'
+        }), 404
+    
+    # Get request data
+    try:
+        from flask import request, jsonify
+        data = request.get_json()
+        
+        if not data:
+            return jsonify({
+                'success': False,
+                'message': 'No data provided'
+            }), 400
+        
+        # Update settings
+        settings = user['settings'].copy()
+        
+        if 'notification' in data:
+            settings['notification'] = bool(data['notification'])
+        
+        if 'autoRenew' in data:
+            settings['autoRenew'] = bool(data['autoRenew'])
+        
+        # Update user in database
+        update_data = {'settings': settings}
+        
+        if user_model.update_user(session['user_id'], update_data):
+            # Log the activity
+            activity_model = ActivityLog()
+            activity_model.log_activity(
+                user_id=session['user_id'],
+                activity_type='profile-update',
+                details='Profile settings updated via API',
+                status='success'
+            )
+            
+            # Return success response
+            return jsonify({
+                'success': True,
+                'message': 'Profile updated successfully',
+                'data': {'settings': settings}
+            })
+        else:
+            # Return error response
+            return jsonify({
+                'success': False,
+                'message': 'Failed to update profile'
+            }), 500
+    except Exception as e:
+        logger.error(f"Error updating profile: {e}")
+        from flask import jsonify
+        return jsonify({
+            'success': False,
+            'message': f'Error updating profile: {str(e)}'
+        }), 500
+
+@login_required
+def delete_account():
+    """Delete user account route."""
+    # Get user data
+    user_model = User()
+    user = user_model.get_user_by_id(session['user_id'])
+    
+    if not user:
+        # Flash error message
+        flash('User not found', 'danger')
+        
+        # Clear session and redirect to login
+        session.clear()
+        return redirect(url_for('auth.login'))
+    
+    # Handle form submission
+    if request.method == 'POST':
+        # Get confirmation
+        confirmation = request.form.get('confirm_delete', '').strip().lower()
+        
+        if confirmation != 'delete':
+            flash('Please type "delete" to confirm account deletion', 'danger')
+            return redirect(url_for('user.profile'))
+        
+        # Log the deletion request
+        try:
+            activity_model = ActivityLog()
+            activity_model.log_activity(
+                user_id=session['user_id'],
+                activity_type='account-deletion',
+                details='Account deletion requested',
+                status='info'
+            )
+        except Exception as e:
+            logger.error(f"Error logging account deletion: {e}")
+        
+        # Delete user
+        if hasattr(user_model, 'delete_user'):
+            success = user_model.delete_user(session['user_id'])
+        else:
+            # Fallback method
+            result = user_model.collection.delete_one({"_id": ObjectId(session['user_id'])})
+            success = result.deleted_count > 0
+        
+        # Clear session
+        session.clear()
+        
+        if success:
+            # Log successful deletion
+            logger.info(f"User account {user['username']} (ID: {session['user_id']}) deleted")
+            
+            # Redirect to goodbye page
+            return redirect(url_for('public.goodbye'))
+        else:
+            # Flash error and redirect to login
+            flash('An error occurred while deleting your account. Please try again later.', 'danger')
+            return redirect(url_for('auth.login'))
+    
+    # Render confirmation page
+    return render_template(
+        'user/delete_account.html',
+        current_user=user,
+        title='Delete Account'
     )

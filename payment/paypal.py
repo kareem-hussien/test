@@ -1,9 +1,10 @@
 """
-PayPal integration for Travian Whispers subscription payments.
-This module provides functions for creating and processing PayPal payments.
+Enhanced PayPal integration for Travian Whispers subscription payments.
+This module provides improved functions for creating and processing PayPal payments.
 """
 import logging
 import json
+import re
 from datetime import datetime, timedelta
 from bson import ObjectId
 from payment.http_utils import perform_request, basic_auth_header
@@ -133,9 +134,10 @@ def create_subscription_order(plan_id, user_id, success_url, cancel_url, billing
         }
         
         # Determine price based on billing period
-        if billing_period == 'yearly':
+        if billing_period.lower() == 'yearly':
             price = plan['price']['yearly']
             period_display = 'year'
+            billing_period = 'yearly'
         else:
             price = plan['price']['monthly']
             period_display = 'month'
@@ -441,9 +443,76 @@ def verify_webhook_signature(webhook_body, headers):
     Returns:
         bool: True if signature is valid, False otherwise
     """
-    # In a real implementation, this would use PayPal's SDK to verify the signature
-    # For now, we'll just return True as a placeholder
-    return True
+    # Get webhook ID from config
+    paypal_config = get_paypal_config()
+    webhook_id = paypal_config.get('webhook_id')
+    
+    # If no webhook ID is configured, skip verification (for development)
+    if not webhook_id:
+        logger.warning("Webhook verification skipped: No webhook ID configured")
+        return True
+    
+    try:
+        # Get necessary headers
+        auth_algo = headers.get('PAYPAL-AUTH-ALGO')
+        cert_url = headers.get('PAYPAL-CERT-URL')
+        transmission_id = headers.get('PAYPAL-TRANSMISSION-ID')
+        transmission_sig = headers.get('PAYPAL-TRANSMISSION-SIG')
+        transmission_time = headers.get('PAYPAL-TRANSMISSION-TIME')
+        
+        # Check if all headers are present
+        if not all([auth_algo, cert_url, transmission_id, transmission_sig, transmission_time]):
+            logger.error("Missing required PayPal webhook headers")
+            return False
+        
+        # Get access token for API call
+        access_token = get_access_token()
+        if not access_token:
+            logger.error("Failed to get access token for webhook verification")
+            return False
+        
+        # Build verification payload
+        verification_payload = {
+            "auth_algo": auth_algo,
+            "cert_url": cert_url,
+            "transmission_id": transmission_id,
+            "transmission_sig": transmission_sig,
+            "transmission_time": transmission_time,
+            "webhook_id": webhook_id,
+            "webhook_event": json.loads(webhook_body.decode('utf-8'))
+        }
+        
+        # Make verification request
+        paypal_config = get_paypal_config()
+        url = f"{paypal_config['base_url']}/v1/notifications/verify-webhook-signature"
+        headers = {
+            "Content-Type": "application/json",
+            "Authorization": f"Bearer {access_token}"
+        }
+        
+        status, response_headers, content = perform_request(
+            url,
+            method="POST",
+            headers=headers,
+            data=json.dumps(verification_payload)
+        )
+        
+        if status == 200:
+            response_data = json.loads(content.decode('utf-8'))
+            verification_status = response_data.get("verification_status")
+            
+            if verification_status == "SUCCESS":
+                logger.info("PayPal webhook signature verified successfully")
+                return True
+            else:
+                logger.warning(f"PayPal webhook signature verification failed: {verification_status}")
+                return False
+        else:
+            logger.error(f"Failed to verify webhook signature: Status {status}")
+            return False
+    except Exception as e:
+        logger.error(f"Error verifying webhook signature: {e}")
+        return False
 
 def handle_webhook_event(event_type, event_data):
     """
@@ -462,34 +531,95 @@ def handle_webhook_event(event_type, event_data):
         # Handle specific event types
         if event_type == "PAYMENT.CAPTURE.COMPLETED":
             # Process completed payment
-            order_id = event_data.get("resource", {}).get("id")
+            order_id = None
+            
+            # Try to extract order ID from different places in the event data
+            resource = event_data.get("resource", {})
+            
+            # First try to get from supplementary data
+            supplementary_data = resource.get("supplementary_data", {})
+            related_ids = supplementary_data.get("related_ids", {})
+            order_id = related_ids.get("order_id")
+            
+            # If not found, try to get from links
+            if not order_id:
+                links = resource.get("links", [])
+                for link in links:
+                    if link.get("rel") == "up":
+                        href = link.get("href", '')
+                        # Extract order ID from href
+                        if '/orders/' in href:
+                            order_id = href.split('/orders/')[1].split('/')[0]
+                            break
+            
+            # If still not found, use payment ID as fallback
+            if not order_id:
+                order_id = resource.get("id")
+            
             if order_id:
                 return process_successful_payment(order_id)
             else:
                 logger.error("Missing order ID in webhook event data")
                 return False
+                
         elif event_type == "PAYMENT.CAPTURE.DENIED":
             # Handle denied payment
-            order_id = event_data.get("resource", {}).get("id")
-            if order_id:
+            from database.models.transaction import Transaction
+            
+            resource = event_data.get("resource", {})
+            payment_id = resource.get("id")
+            
+            if payment_id:
                 # Update transaction status to 'failed'
-                from database.models.transaction import Transaction
                 transaction_model = Transaction()
-                transaction = transaction_model.get_transaction_by_payment_id(order_id)
+                transaction = transaction_model.get_transaction_by_payment_id(payment_id)
                 
                 if transaction:
                     transaction_model.update_transaction_status(str(transaction['_id']), 'failed')
                     return True
                 else:
-                    logger.error(f"Transaction not found for order_id: {order_id}")
+                    logger.error(f"Transaction not found for payment_id: {payment_id}")
                     return False
             else:
-                logger.error("Missing order ID in webhook event data")
+                logger.error("Missing payment ID in webhook event data")
                 return False
+                
+        elif event_type == "PAYMENT.CAPTURE.REFUNDED":
+            # Handle refunded payment
+            from database.models.transaction import Transaction
+            from database.models.user import User
+            
+            resource = event_data.get("resource", {})
+            payment_id = resource.get("id")
+            
+            if payment_id:
+                # Update transaction status to 'refunded'
+                transaction_model = Transaction()
+                transaction = transaction_model.get_transaction_by_payment_id(payment_id)
+                
+                if transaction:
+                    transaction_model.update_transaction_status(str(transaction['_id']), 'refunded')
+                    
+                    # Cancel subscription
+                    user_model = User()
+                    if hasattr(user_model, 'cancel_subscription'):
+                        user_model.cancel_subscription(str(transaction['userId']))
+                    else:
+                        user_model.update_subscription_status(str(transaction['userId']), 'cancelled')
+                        
+                    return True
+                else:
+                    logger.error(f"Transaction not found for payment_id: {payment_id}")
+                    return False
+            else:
+                logger.error("Missing payment ID in webhook event data")
+                return False
+                
         else:
             # Log unhandled event types
             logger.info(f"Unhandled webhook event type: {event_type}")
             return True  # Return true for unhandled events
+            
     except Exception as e:
         logger.error(f"Error handling webhook event: {e}")
         return False

@@ -1,6 +1,6 @@
 """
 Enhanced Transaction model for Travian Whispers web application.
-This module improves the transaction model to better handle PayPal payments.
+This module handles subscription transactions with improved error handling.
 """
 import logging
 from datetime import datetime
@@ -14,6 +14,12 @@ logger = logging.getLogger(__name__)
 
 class Transaction:
     """Transaction model for subscription payments."""
+    
+    # Transaction status constants
+    STATUS_PENDING = 'pending'
+    STATUS_COMPLETED = 'completed'
+    STATUS_FAILED = 'failed'
+    STATUS_REFUNDED = 'refunded'
     
     def __init__(self):
         """Initialize transaction model."""
@@ -47,7 +53,7 @@ class Transaction:
                 'userId': user_id,
                 'planId': ObjectId(plan_id),
                 'amount': float(amount),
-                'status': 'pending',
+                'status': self.STATUS_PENDING,
                 'paymentMethod': payment_method,
                 'paymentId': payment_id,
                 'billingPeriod': billing_period,
@@ -86,6 +92,9 @@ class Transaction:
             # Get transaction
             transaction = self.collection.find_one({'_id': ObjectId(transaction_id)})
             
+            if not transaction:
+                logger.warning(f"No transaction found with ID: {transaction_id}")
+                
             return transaction
         except Exception as e:
             logger.error(f"Error getting transaction: {e}")
@@ -133,6 +142,12 @@ class Transaction:
                 logger.error("Database connection not available")
                 return False
                 
+            # Validate status
+            valid_statuses = [self.STATUS_PENDING, self.STATUS_COMPLETED, self.STATUS_FAILED, self.STATUS_REFUNDED]
+            if status not in valid_statuses:
+                logger.error(f"Invalid transaction status: {status}")
+                return False
+                
             # Update transaction status
             result = self.collection.update_one(
                 {'_id': ObjectId(transaction_id)},
@@ -142,8 +157,12 @@ class Transaction:
             if result.modified_count > 0:
                 logger.info(f"Updated transaction {transaction_id} status to {status}")
                 return True
+            elif result.matched_count > 0:
+                # Transaction exists but status didn't change (e.g., already had this status)
+                logger.info(f"Transaction {transaction_id} already has status {status}")
+                return True
             else:
-                logger.warning(f"No changes made when updating transaction {transaction_id} status to {status}")
+                logger.warning(f"No transaction found with ID {transaction_id}")
                 return False
         except Exception as e:
             logger.error(f"Error updating transaction status: {e}")
@@ -186,4 +205,176 @@ class Transaction:
             return transactions
         except Exception as e:
             logger.error(f"Error getting user transactions: {e}")
+            return []
+    
+    def count_transactions_by_status(self, status=None):
+        """
+        Count transactions by status.
+        
+        Args:
+            status (str, optional): Status to filter by
+            
+        Returns:
+            int: Count of transactions
+        """
+        try:
+            if self.collection is None:
+                logger.error("Database connection not available")
+                return 0
+                
+            # Build query
+            query = {}
+            
+            # Add status filter if provided
+            if status:
+                query['status'] = status
+            
+            # Count transactions
+            count = self.collection.count_documents(query)
+            
+            return count
+        except Exception as e:
+            logger.error(f"Error counting transactions: {e}")
+            return 0
+    
+    def get_transactions_by_period(self, start_date, end_date, status=None):
+        """
+        Get transactions within a date range.
+        
+        Args:
+            start_date (datetime): Start date
+            end_date (datetime): End date
+            status (str, optional): Status to filter by
+            
+        Returns:
+            list: List of transactions
+        """
+        try:
+            if self.collection is None:
+                logger.error("Database connection not available")
+                return []
+                
+            # Build query
+            query = {
+                'createdAt': {
+                    '$gte': start_date,
+                    '$lte': end_date
+                }
+            }
+            
+            # Add status filter if provided
+            if status:
+                query['status'] = status
+            
+            # Find transactions
+            transactions = list(self.collection.find(query).sort('createdAt', DESCENDING))
+            
+            return transactions
+        except Exception as e:
+            logger.error(f"Error getting transactions by period: {e}")
+            return []
+    
+    def calculate_revenue(self, start_date=None, end_date=None):
+        """
+        Calculate total revenue from completed transactions.
+        
+        Args:
+            start_date (datetime, optional): Start date for filtering
+            end_date (datetime, optional): End date for filtering
+            
+        Returns:
+            float: Total revenue
+        """
+        try:
+            if self.collection is None:
+                logger.error("Database connection not available")
+                return 0
+                
+            # Build query
+            query = {'status': self.STATUS_COMPLETED}
+            
+            # Add date range if provided
+            if start_date or end_date:
+                query['createdAt'] = {}
+                
+                if start_date:
+                    query['createdAt']['$gte'] = start_date
+                
+                if end_date:
+                    query['createdAt']['$lte'] = end_date
+            
+            # Use aggregation pipeline to calculate sum
+            pipeline = [
+                {'$match': query},
+                {'$group': {'_id': None, 'total': {'$sum': '$amount'}}}
+            ]
+            
+            results = list(self.collection.aggregate(pipeline))
+            
+            if results:
+                return results[0]['total']
+            else:
+                return 0
+        except Exception as e:
+            logger.error(f"Error calculating revenue: {e}")
+            return 0
+    
+    def get_monthly_revenue_stats(self, year=None):
+        """
+        Get monthly revenue statistics.
+        
+        Args:
+            year (int, optional): Year to filter by
+            
+        Returns:
+            list: Monthly revenue statistics
+        """
+        try:
+            if self.collection is None:
+                logger.error("Database connection not available")
+                return []
+                
+            # Determine year to use
+            if year is None:
+                year = datetime.utcnow().year
+            
+            # Use aggregation pipeline to calculate monthly stats
+            pipeline = [
+                # Match completed transactions for the specified year
+                {
+                    '$match': {
+                        'status': self.STATUS_COMPLETED,
+                        '$expr': {'$eq': [{'$year': '$createdAt'}, year]}
+                    }
+                },
+                # Group by month
+                {
+                    '$group': {
+                        '_id': {'$month': '$createdAt'},
+                        'total': {'$sum': '$amount'},
+                        'count': {'$sum': 1}
+                    }
+                },
+                # Sort by month
+                {
+                    '$sort': {'_id': 1}
+                }
+            ]
+            
+            # Execute aggregation
+            results = list(self.collection.aggregate(pipeline))
+            
+            # Format results
+            monthly_stats = []
+            for result in results:
+                month = result['_id']
+                monthly_stats.append({
+                    'month': month,
+                    'total': result['total'],
+                    'count': result['count']
+                })
+            
+            return monthly_stats
+        except Exception as e:
+            logger.error(f"Error getting monthly revenue stats: {e}")
             return []
