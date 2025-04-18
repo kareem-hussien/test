@@ -395,3 +395,204 @@ def merge_villages(self, user_id, new_villages):
     except Exception as e:
         logger.error(f"Error merging villages: {e}")
         return False
+    
+def update_subscription_status(self, user_id, status):
+    """
+    Update user subscription status.
+    
+    Args:
+        user_id (str): User ID
+        status (str): New subscription status ('active', 'inactive', 'cancelled')
+        
+    Returns:
+        bool: True if successful, False otherwise
+    """
+    try:
+        if self.collection is None:
+            logger.error("Database connection not available")
+            return False
+        
+        # Validate status
+        valid_statuses = ['active', 'inactive', 'cancelled']
+        if status not in valid_statuses:
+            logger.error(f"Invalid subscription status: {status}")
+            return False
+        
+        # Get current user data to preserve other subscription fields
+        user = self.get_user_by_id(user_id)
+        if not user:
+            logger.error(f"User not found: {user_id}")
+            return False
+        
+        # Update subscription status
+        subscription_data = {
+            'subscription.status': status,
+            'updatedAt': datetime.utcnow()
+        }
+        
+        result = self.collection.update_one(
+            {'_id': ObjectId(user_id)},
+            {'$set': subscription_data}
+        )
+        
+        if result.modified_count > 0:
+            logger.info(f"Updated subscription status to {status} for user {user_id}")
+            return True
+        else:
+            logger.warning(f"No changes made when updating subscription status for user {user_id}")
+            return False
+    except Exception as e:
+        logger.error(f"Error updating subscription status: {e}")
+        return False
+
+def update_subscription_plan(self, user_id, plan_id, billing_period, start_date=None, end_date=None):
+    """
+    Update user subscription plan.
+    
+    Args:
+        user_id (str): User ID
+        plan_id (str): Subscription plan ID
+        billing_period (str): Billing period ('monthly' or 'yearly')
+        start_date (datetime, optional): Subscription start date
+        end_date (datetime, optional): Subscription end date
+        
+    Returns:
+        bool: True if successful, False otherwise
+    """
+    try:
+        if self.collection is None:
+            logger.error("Database connection not available")
+            return False
+        
+        # Get current user data
+        user = self.get_user_by_id(user_id)
+        if not user:
+            logger.error(f"User not found: {user_id}")
+            return False
+        
+        # Set default dates if not provided
+        if not start_date:
+            start_date = datetime.utcnow()
+            
+        if not end_date:
+            # Calculate end date based on billing period
+            if billing_period == 'yearly':
+                end_date = start_date + timedelta(days=365)
+            else:
+                end_date = start_date + timedelta(days=30)
+        
+        # Update subscription data
+        subscription_data = {
+            'subscription.planId': ObjectId(plan_id),
+            'subscription.status': 'active',
+            'subscription.startDate': start_date,
+            'subscription.endDate': end_date,
+            'subscription.billingPeriod': billing_period,
+            'updatedAt': datetime.utcnow()
+        }
+        
+        result = self.collection.update_one(
+            {'_id': ObjectId(user_id)},
+            {'$set': subscription_data}
+        )
+        
+        if result.modified_count > 0:
+            logger.info(f"Updated subscription plan to {plan_id} for user {user_id}")
+            return True
+        else:
+            logger.warning(f"No changes made when updating subscription plan for user {user_id}")
+            return False
+    except Exception as e:
+        logger.error(f"Error updating subscription plan: {e}")
+        return False
+
+def add_payment_history(self, user_id, transaction_id, amount, payment_method, payment_id):
+    """
+    Add payment to user's payment history.
+    
+    Args:
+        user_id (str): User ID
+        transaction_id (str): Transaction ID
+        amount (float): Payment amount
+        payment_method (str): Payment method
+        payment_id (str): Payment ID from payment gateway
+        
+    Returns:
+        bool: True if successful, False otherwise
+    """
+    try:
+        if self.collection is None:
+            logger.error("Database connection not available")
+            return False
+        
+        # Create payment record
+        payment_record = {
+            'transactionId': ObjectId(transaction_id),
+            'amount': float(amount),
+            'date': datetime.utcnow(),
+            'method': payment_method,
+            'orderId': payment_id
+        }
+        
+        # Add payment to history
+        result = self.collection.update_one(
+            {'_id': ObjectId(user_id)},
+            {'$push': {'subscription.paymentHistory': payment_record}}
+        )
+        
+        if result.modified_count > 0:
+            logger.info(f"Added payment to history for user {user_id}")
+            return True
+        else:
+            logger.warning(f"No changes made when adding payment to history for user {user_id}")
+            return False
+    except Exception as e:
+        logger.error(f"Error adding payment to history: {e}")
+        return False
+
+def cancel_subscription(self, user_id):
+    """
+    Cancel a user's subscription but preserve access until the end date.
+    
+    Args:
+        user_id (str): User ID
+        
+    Returns:
+        bool: True if successful, False otherwise
+    """
+    try:
+        if self.collection is None:
+            logger.error("Database connection not available")
+            return False
+        
+        # Get current user data
+        user = self.get_user_by_id(user_id)
+        if not user:
+            logger.error(f"User not found: {user_id}")
+            return False
+        
+        # Ensure the user has an active subscription
+        if user['subscription']['status'] != 'active':
+            logger.warning(f"User {user_id} does not have an active subscription to cancel")
+            return False
+        
+        # Update subscription status to cancelled
+        result = self.collection.update_one(
+            {'_id': ObjectId(user_id)},
+            {
+                '$set': {
+                    'subscription.status': 'cancelled',
+                    'updatedAt': datetime.utcnow()
+                }
+            }
+        )
+        
+        if result.modified_count > 0:
+            logger.info(f"Cancelled subscription for user {user_id}")
+            return True
+        else:
+            logger.warning(f"No changes made when cancelling subscription for user {user_id}")
+            return False
+    except Exception as e:
+        logger.error(f"Error cancelling subscription: {e}")
+        return False

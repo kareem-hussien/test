@@ -1,6 +1,6 @@
 """
-Fixed PayPal integration for Travian Whispers subscription payments.
-This module fixes the datetime comparison issue in the payment processing function.
+PayPal integration for Travian Whispers subscription payments.
+This module provides functions for creating and processing PayPal payments.
 """
 import logging
 import json
@@ -29,6 +29,7 @@ def get_paypal_config():
         'mode': config.PAYPAL_MODE,
         'base_url': 'https://api-m.sandbox.paypal.com' if is_sandbox else 'https://api-m.paypal.com',
         'is_sandbox': is_sandbox,
+        'webhook_id': getattr(config, 'PAYPAL_WEBHOOK_ID', None),
     }
 
 def get_access_token():
@@ -85,7 +86,6 @@ def get_access_token():
 def create_subscription_order(plan_id, user_id, success_url, cancel_url, billing_period='monthly'):
     """
     Create a PayPal order for subscription payment.
-    Fixed to handle decimal precision properly.
     
     Args:
         plan_id (str): Subscription plan ID
@@ -141,7 +141,7 @@ def create_subscription_order(plan_id, user_id, success_url, cancel_url, billing
             period_display = 'month'
             billing_period = 'monthly'  # Ensure consistent value
         
-        # Fix: Ensure price is formatted with exactly 2 decimal places
+        # Ensure price is formatted with exactly 2 decimal places
         formatted_price = f"{float(price):.2f}"
         
         # Create order payload
@@ -267,7 +267,6 @@ def create_subscription_order(plan_id, user_id, success_url, cancel_url, billing
 def process_successful_payment(order_id):
     """
     Process a successful payment and update user subscription.
-    Retrieves all necessary data using just the order_id.
     
     Args:
         order_id (str): PayPal order ID
@@ -326,23 +325,9 @@ def process_successful_payment(order_id):
         start_date = datetime.utcnow()
         
         # If user already has active subscription, extend it from current end date
-        if user['subscription']['status'] == 'active' and user['subscription'].get('endDate'):
-            # Ensure both datetimes are timezone-naive for comparison
-            end_date = user['subscription']['endDate']
-            
-            # Handle timezone-aware vs timezone-naive comparison
-            if hasattr(end_date, 'tzinfo') and end_date.tzinfo and not start_date.tzinfo:
-                # Make end_date timezone-naive by removing tzinfo
-                end_date = end_date.replace(tzinfo=None)
-            
-            # If start_date has timezone info but end_date doesn't
-            elif hasattr(start_date, 'tzinfo') and start_date.tzinfo and not (hasattr(end_date, 'tzinfo') and end_date.tzinfo):
-                # Make start_date timezone-naive
-                start_date = start_date.replace(tzinfo=None)
-                
-            # Now compare and use the later date
-            if end_date > start_date:
-                start_date = end_date
+        if user['subscription']['status'] == 'active' and user['subscription'].get('endDate') and user['subscription']['endDate'] > start_date:
+            # Extend existing subscription
+            start_date = user['subscription']['endDate']
         
         # Calculate end date based on billing period
         if billing_period == 'yearly':
@@ -411,23 +396,9 @@ def process_successful_payment(order_id):
         
         # Send confirmation email
         try:
-            from email_module.sender import send_subscription_confirmation_email
-            
-            # Format dates for email
-            formatted_end_date = end_date.strftime("%B %d, %Y")
-            formatted_amount = f"${transaction['amount']:.2f}"
-            
-            send_subscription_confirmation_email(
-                to_email=user["email"],
-                username=user["username"],
-                plan_name=plan["name"],
-                end_date=formatted_end_date,
-                amount=formatted_amount,
-                payment_id=order_id,
-                billing_period=billing_period
-            )
-            
-            logger.info(f"Subscription confirmation email sent to {user['email']}")
+            # This is a placeholder for email sending functionality
+            # In a real implementation, you would call an email sending service
+            logger.info(f"Would send subscription confirmation email to {user['email']}")
         except Exception as e:
             logger.error(f"Failed to send subscription confirmation email: {e}")
             # Non-critical error, continue processing
@@ -459,24 +430,24 @@ def process_successful_payment(order_id):
         logger.error(f"Error processing payment: {str(e)}", exc_info=True)
         return False
 
-def verify_webhook_signature(request_body, headers):
+def verify_webhook_signature(webhook_body, headers):
     """
-    Verify webhook signature from PayPal.
+    Verify PayPal webhook signature.
     
     Args:
-        request_body (bytes): Raw request body
+        webhook_body (bytes): Raw webhook body
         headers (dict): Request headers
         
     Returns:
         bool: True if signature is valid, False otherwise
     """
-    # Add implementation for webhook signature verification
-    # For now return True as placeholder
+    # In a real implementation, this would use PayPal's SDK to verify the signature
+    # For now, we'll just return True as a placeholder
     return True
 
 def handle_webhook_event(event_type, event_data):
     """
-    Handle PayPal webhook event.
+    Handle PayPal webhook events.
     
     Args:
         event_type (str): Event type
@@ -488,21 +459,37 @@ def handle_webhook_event(event_type, event_data):
     logger.info(f"Processing PayPal webhook event: {event_type}")
     
     try:
-        # Handle different event types
-        if event_type == 'PAYMENT.CAPTURE.COMPLETED':
+        # Handle specific event types
+        if event_type == "PAYMENT.CAPTURE.COMPLETED":
             # Process completed payment
-            order_id = event_data.get('resource', {}).get('id')
+            order_id = event_data.get("resource", {}).get("id")
             if order_id:
                 return process_successful_payment(order_id)
             else:
                 logger.error("Missing order ID in webhook event data")
                 return False
-        
-        # Add handlers for other event types as needed
-        
-        # Default: log event but take no action
-        logger.info(f"No specific handler for event type: {event_type}")
-        return True
+        elif event_type == "PAYMENT.CAPTURE.DENIED":
+            # Handle denied payment
+            order_id = event_data.get("resource", {}).get("id")
+            if order_id:
+                # Update transaction status to 'failed'
+                from database.models.transaction import Transaction
+                transaction_model = Transaction()
+                transaction = transaction_model.get_transaction_by_payment_id(order_id)
+                
+                if transaction:
+                    transaction_model.update_transaction_status(str(transaction['_id']), 'failed')
+                    return True
+                else:
+                    logger.error(f"Transaction not found for order_id: {order_id}")
+                    return False
+            else:
+                logger.error("Missing order ID in webhook event data")
+                return False
+        else:
+            # Log unhandled event types
+            logger.info(f"Unhandled webhook event type: {event_type}")
+            return True  # Return true for unhandled events
     except Exception as e:
         logger.error(f"Error handling webhook event: {e}")
         return False

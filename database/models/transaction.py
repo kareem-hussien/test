@@ -1,6 +1,6 @@
 """
-Enhanced Transaction model for Travian Whispers web application.
-This module improves the transaction model to better handle PayPal payments.
+Transaction model for Travian Whispers web application.
+This module provides the Transaction model for handling subscription payments.
 """
 import logging
 from datetime import datetime
@@ -187,3 +187,126 @@ class Transaction:
         except Exception as e:
             logger.error(f"Error getting user transactions: {e}")
             return []
+            
+    def get_transactions_by_date_range(self, start_date, end_date, status=None):
+        """
+        Get transactions within a date range.
+        
+        Args:
+            start_date (datetime): Start date
+            end_date (datetime): End date
+            status (str, optional): Filter by status
+            
+        Returns:
+            list: List of transactions
+        """
+        try:
+            if self.collection is None:
+                logger.error("Database connection not available")
+                return []
+                
+            # Build query
+            query = {
+                'createdAt': {
+                    '$gte': start_date,
+                    '$lte': end_date
+                }
+            }
+            
+            # Add status filter if provided
+            if status:
+                query['status'] = status
+            
+            # Create cursor with sorting
+            cursor = self.collection.find(query).sort('createdAt', DESCENDING)
+            
+            # Get transactions
+            transactions = list(cursor)
+            
+            return transactions
+        except Exception as e:
+            logger.error(f"Error getting transactions by date range: {e}")
+            return []
+    
+    def get_recent_transactions(self, limit=10, status=None):
+        """
+        Get recent transactions.
+        
+        Args:
+            limit (int): Maximum number of transactions to return
+            status (str, optional): Filter by status
+            
+        Returns:
+            list: List of transactions
+        """
+        try:
+            if self.collection is None:
+                logger.error("Database connection not available")
+                return []
+                
+            # Build query
+            query = {}
+            
+            # Add status filter if provided
+            if status:
+                query['status'] = status
+            
+            # Create cursor with sorting and limit
+            cursor = self.collection.find(query).sort('createdAt', DESCENDING).limit(limit)
+            
+            # Get transactions
+            transactions = list(cursor)
+            
+            return transactions
+        except Exception as e:
+            logger.error(f"Error getting recent transactions: {e}")
+            return []
+    
+    def get_transaction_stats(self):
+        """
+        Get transaction statistics.
+        
+        Returns:
+            dict: Transaction statistics
+        """
+        try:
+            if self.collection is None:
+                logger.error("Database connection not available")
+                return {
+                    'total': 0,
+                    'completed': 0,
+                    'pending': 0,
+                    'failed': 0,
+                    'total_amount': 0
+                }
+                
+            # Count total transactions
+            total = self.collection.count_documents({})
+            
+            # Count transactions by status
+            completed = self.collection.count_documents({'status': 'completed'})
+            pending = self.collection.count_documents({'status': 'pending'})
+            failed = self.collection.count_documents({'status': 'failed'})
+            
+            # Calculate total amount from completed transactions
+            total_amount = 0
+            completed_transactions = self.collection.find({'status': 'completed'})
+            for transaction in completed_transactions:
+                total_amount += transaction.get('amount', 0)
+            
+            return {
+                'total': total,
+                'completed': completed,
+                'pending': pending,
+                'failed': failed,
+                'total_amount': total_amount
+            }
+        except Exception as e:
+            logger.error(f"Error getting transaction stats: {e}")
+            return {
+                'total': 0,
+                'completed': 0,
+                'pending': 0,
+                'failed': 0,
+                'total_amount': 0
+            }
