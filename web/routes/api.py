@@ -789,3 +789,358 @@ def paypal_webhook():
             'success': False,
             'message': 'Failed to process webhook event'
         }), 500
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+"""
+Enhanced subscription API routes for Travian Whispers.
+This module includes fixes for subscription status updates, payment processing, and error handling.
+"""
+import logging
+from datetime import datetime, timedelta
+from flask import request, jsonify, session, current_app
+from bson import ObjectId
+
+from web.utils.decorators import login_required, api_error_handler
+from database.models.user import User
+from database.models.subscription import SubscriptionPlan
+from database.models.transaction import Transaction
+from database.models.activity_log import ActivityLog
+from payment.paypal import create_subscription_order, process_successful_payment
+
+# Initialize logger
+logger = logging.getLogger(__name__)
+
+@api_error_handler
+@login_required
+def create_subscription_order_api():
+    """API endpoint to create a PayPal order for subscription payment."""
+    # Get user ID from session
+    user_id = session.get('user_id')
+    
+    # Get request data
+    data = request.get_json()
+    
+    if not data:
+        return jsonify({
+            'success': False,
+            'message': 'No data provided'
+        }), 400
+    
+    # Extract required data
+    plan_id = data.get('plan_id')
+    billing_period = data.get('billing_period', 'monthly')
+    
+    if not plan_id:
+        return jsonify({
+            'success': False,
+            'message': 'Plan ID is required'
+        }), 400
+    
+    # Get plan details
+    plan_model = SubscriptionPlan()
+    plan = plan_model.get_plan_by_id(plan_id)
+    
+    if not plan:
+        return jsonify({
+            'success': False,
+            'message': 'Plan not found'
+        }), 404
+    
+    # Generate success and cancel URLs
+    base_url = request.host_url.rstrip('/')
+    success_url = f"{base_url}/dashboard/subscription/success"
+    cancel_url = f"{base_url}/dashboard/subscription/cancel"
+    
+    # Create PayPal order
+    success, order_id, approval_url = create_subscription_order(
+        plan_id, 
+        user_id, 
+        success_url, 
+        cancel_url,
+        billing_period
+    )
+    
+    if success and approval_url:
+        # Log the activity
+        try:
+            activity_model = ActivityLog()
+            activity_model.log_activity(
+                user_id=user_id,
+                activity_type='subscription-order',
+                details=f"Created subscription order for {plan['name']} plan with {billing_period} billing",
+                status='pending'
+            )
+        except Exception as e:
+            logger.error(f"Error logging activity: {e}")
+        
+        # Return success response
+        return jsonify({
+            'success': True,
+            'message': 'Payment order created successfully',
+            'data': {
+                'order_id': order_id,
+                'approval_url': approval_url
+            }
+        })
+    else:
+        return jsonify({
+            'success': False,
+            'message': 'Failed to create payment order'
+        }), 500
+
+@api_error_handler
+@login_required
+def process_payment_api():
+    """API endpoint to process a PayPal payment."""
+    # Get request data
+    data = request.get_json()
+    order_id = data.get('order_id')
+    
+    if not order_id:
+        return jsonify({
+            'success': False,
+            'message': 'Order ID is required'
+        }), 400
+    
+    # Process payment
+    if process_successful_payment(order_id):
+        return jsonify({
+            'success': True,
+            'message': 'Payment processed successfully'
+        })
+    else:
+        return jsonify({
+            'success': False,
+            'message': 'Failed to process payment'
+        }), 500
+
+@api_error_handler
+@login_required
+def cancel_subscription_api():
+    """API endpoint to cancel a subscription."""
+    # Get user data
+    user_model = User()
+    user = user_model.get_user_by_id(session.get('user_id'))
+    
+    if not user:
+        return jsonify({
+            'success': False,
+            'message': 'User not found'
+        }), 404
+    
+    # Check if user has an active subscription
+    if user['subscription']['status'] != 'active':
+        return jsonify({
+            'success': False,
+            'message': 'No active subscription to cancel'
+        }), 400
+    
+    # Get the current subscription plan for better messaging
+    plan_model = SubscriptionPlan()
+    plan_name = "subscription"
+    
+    if user['subscription'].get('planId'):
+        plan = plan_model.get_plan_by_id(str(user['subscription'].get('planId')))
+        if plan:
+            plan_name = plan['name']
+    
+    # Update subscription status to cancelled
+    try:
+        # Using the User model method if available
+        if hasattr(user_model, 'cancel_subscription'):
+            success = user_model.cancel_subscription(session.get('user_id'))
+        else:
+            # Direct update if method not available
+            result = user_model.collection.update_one(
+                {'_id': ObjectId(session.get('user_id'))},
+                {'$set': {
+                    'subscription.status': 'cancelled',
+                    'updatedAt': datetime.utcnow()
+                }}
+            )
+            success = result.modified_count > 0
+        
+        if success:
+            # Log the activity
+            try:
+                activity_model = ActivityLog()
+                activity_model.log_activity(
+                    user_id=session.get('user_id'),
+                    activity_type='subscription-cancel',
+                    details=f'Cancelled {plan_name} subscription',
+                    status='success'
+                )
+            except Exception as e:
+                logger.error(f"Error logging activity: {e}")
+            
+            return jsonify({
+                'success': True,
+                'message': f'Your {plan_name} subscription has been cancelled. You will continue to have access until the end of your current billing period.'
+            })
+        else:
+            return jsonify({
+                'success': False,
+                'message': 'Failed to cancel subscription'
+            }), 500
+    except Exception as e:
+        logger.error(f"Error cancelling subscription: {e}")
+        return jsonify({
+            'success': False,
+            'message': 'An error occurred while cancelling your subscription'
+        }), 500
+
+@api_error_handler
+@login_required
+def get_subscription_status():
+    """API endpoint to get user's subscription status."""
+    # Get user data
+    user_model = User()
+    user = user_model.get_user_by_id(session.get('user_id'))
+    
+    if not user:
+        return jsonify({
+            'success': False,
+            'message': 'User not found'
+        }), 404
+    
+    # Get subscription plan
+    plan_model = SubscriptionPlan()
+    current_plan = None
+    if user['subscription']['planId']:
+        current_plan = plan_model.get_plan_by_id(str(user['subscription']['planId']))
+    
+    # Get user's transaction history
+    transaction_model = Transaction()
+    transactions = transaction_model.get_user_transactions(session.get('user_id'), limit=5)
+    
+    # Format transaction history for display
+    transaction_history = []
+    for tx in transactions:
+        # Get plan info
+        plan_info = plan_model.get_plan_by_id(str(tx.get('planId'))) if tx.get('planId') else None
+        plan_name = plan_info['name'] if plan_info else 'Unknown Plan'
+        
+        # Format dates properly for display
+        created_at = tx.get('createdAt')
+        tx_date = created_at.strftime('%Y-%m-%d %H:%M') if isinstance(created_at, datetime) else 'Unknown'
+        
+        transaction_history.append({
+            'id': str(tx.get('_id')),
+            'date': tx_date,
+            'amount': tx.get('amount'),
+            'plan': plan_name,
+            'status': tx.get('status'),
+            'payment_method': tx.get('paymentMethod'),
+            'billing_period': tx.get('billingPeriod', 'monthly').capitalize()
+        })
+    
+    # Calculate subscription statistics
+    subscription_stats = {
+        'status': user['subscription']['status'],
+        'start_date': user['subscription'].get('startDate').strftime('%Y-%m-%d') if user['subscription'].get('startDate') else None,
+        'end_date': user['subscription'].get('endDate').strftime('%Y-%m-%d') if user['subscription'].get('endDate') else None,
+        'plan': current_plan['name'] if current_plan else None,
+        'auto_renew': user['settings'].get('autoRenew', False),
+        'features': current_plan['features'] if current_plan else {},
+        'remaining_days': 0
+    }
+    
+    # Calculate days until expiration
+    if user['subscription'].get('endDate'):
+        end_date = user['subscription']['endDate']
+        now = datetime.utcnow()
+        if hasattr(end_date, 'replace') and end_date > now:
+            if end_date.tzinfo:
+                end_date = end_date.replace(tzinfo=None)
+            delta = end_date - now
+            subscription_stats['remaining_days'] = delta.days
+    
+    return jsonify({
+        'success': True,
+        'data': {
+            'subscription': subscription_stats,
+            'transactions': transaction_history
+        }
+    })
+
+@api_error_handler
+@login_required
+def update_auto_renew():
+    """API endpoint to update auto-renew setting."""
+    # Get request data
+    data = request.get_json()
+    auto_renew = data.get('auto_renew', False)
+    
+    # Get user data
+    user_model = User()
+    user = user_model.get_user_by_id(session.get('user_id'))
+    
+    if not user:
+        return jsonify({
+            'success': False,
+            'message': 'User not found'
+        }), 404
+    
+    # Update auto-renew setting
+    settings = user['settings'].copy()
+    settings['autoRenew'] = bool(auto_renew)
+    
+    if user_model.update_user(session.get('user_id'), {'settings': settings}):
+        # Log the activity
+        try:
+            activity_model = ActivityLog()
+            activity_model.log_activity(
+                user_id=session.get('user_id'),
+                activity_type='settings-update',
+                details=f"Updated auto-renew setting to {'enabled' if auto_renew else 'disabled'}",
+                status='success'
+            )
+        except Exception as e:
+            logger.error(f"Error logging activity: {e}")
+        
+        return jsonify({
+            'success': True,
+            'message': f"Auto-renew {'enabled' if auto_renew else 'disabled'} successfully"
+        })
+    else:
+        return jsonify({
+            'success': False,
+            'message': 'Failed to update auto-renew setting'
+        }), 500
+
+def register_subscription_api_routes(api_bp):
+    """Register subscription API routes."""
+    api_bp.route('/subscription/create-order', methods=['POST'])(api_error_handler(login_required(create_subscription_order_api)))
+    api_bp.route('/subscription/process-payment', methods=['POST'])(api_error_handler(login_required(process_payment_api)))
+    api_bp.route('/subscription/cancel', methods=['POST'])(api_error_handler(login_required(cancel_subscription_api)))
+    api_bp.route('/subscription/status', methods=['GET'])(api_error_handler(login_required(get_subscription_status)))
+    api_bp.route('/subscription/auto-renew', methods=['POST'])(api_error_handler(login_required(update_auto_renew)))

@@ -1,7 +1,6 @@
 """
 Enhanced subscription management routes for Travian Whispers web application.
-This module provides the subscription management functionality with production-ready
-PayPal integration and improved error handling.
+This module provides improved handling of subscription data and payment processing.
 """
 import logging
 from datetime import datetime, timedelta
@@ -16,7 +15,7 @@ from database.models.user import User
 from database.models.subscription import SubscriptionPlan
 from database.models.transaction import Transaction
 from database.models.activity_log import ActivityLog
-from payment.paypal import process_successful_payment
+from payment.paypal import create_subscription_order, process_successful_payment
 
 # Initialize logger
 logger = logging.getLogger(__name__)
@@ -58,7 +57,7 @@ def subscription():
     # Get current plan
     current_plan = None
     if user['subscription']['planId']:
-        current_plan = plan_model.get_plan_by_id(user['subscription']['planId'])
+        current_plan = plan_model.get_plan_by_id(str(user['subscription']['planId']))
     
     # Get user's transaction history
     transaction_model = Transaction()
@@ -68,7 +67,7 @@ def subscription():
     transaction_history = []
     for tx in transactions:
         # Get plan info
-        plan_info = plan_model.get_plan_by_id(tx.get('planId'))
+        plan_info = plan_model.get_plan_by_id(str(tx.get('planId'))) if tx.get('planId') else None
         plan_name = plan_info['name'] if plan_info else 'Unknown Plan'
         
         # Format dates properly for display
@@ -150,11 +149,10 @@ def calculate_subscription_stats(user, transactions):
     
     # Format dates if available
     if user['subscription'].get('startDate'):
-        stats['start_date'] = user['subscription']['startDate'].strftime('%Y-%m-%d')
-        
-        # Calculate subscription age safely
         try:
-            # Get the subscription age in days
+            stats['start_date'] = user['subscription']['startDate'].strftime('%Y-%m-%d')
+            
+            # Calculate subscription age safely
             now = datetime.utcnow()
             start_date = user['subscription']['startDate']
             
@@ -168,25 +166,28 @@ def calculate_subscription_stats(user, transactions):
             stats['subscription_age'] = 0
     
     if user['subscription'].get('endDate'):
-        end_date = user['subscription']['endDate']
-        stats['end_date'] = end_date.strftime('%Y-%m-%d')
-        
-        # Calculate days until expiration
-        now = datetime.utcnow()
-
-        if hasattr(end_date, 'replace'):
-            # Make end_date timezone-naive if it has timezone info
-            if end_date.tzinfo:
-                end_date = end_date.replace(tzinfo=None)
+        try:
+            end_date = user['subscription']['endDate']
+            stats['end_date'] = end_date.strftime('%Y-%m-%d')
             
-            # Now compare with now (which is already naive)
-            if end_date > now:
-                delta = end_date - now
-                stats['remaining_days'] = delta.days
-        
-        # For active subscriptions, set next payment date as end date
-        if user['subscription']['status'] == 'active':
-            stats['next_payment'] = stats['end_date']
+            # Calculate days until expiration
+            now = datetime.utcnow()
+
+            if hasattr(end_date, 'replace'):
+                # Make end_date timezone-naive if it has timezone info
+                if end_date.tzinfo:
+                    end_date = end_date.replace(tzinfo=None)
+                
+                # Now compare with now (which is already naive)
+                if end_date > now:
+                    delta = end_date - now
+                    stats['remaining_days'] = delta.days
+            
+            # For active subscriptions, set next payment date as end date
+            if user['subscription']['status'] == 'active':
+                stats['next_payment'] = stats['end_date']
+        except (TypeError, AttributeError) as e:
+            logger.warning(f"Error calculating remaining days: {e}")
     
     # Override next payment message for cancelled, inactive, and free plans
     if user['subscription']['status'] == 'cancelled':
@@ -300,8 +301,7 @@ def activate_free_plan():
     
     return redirect(url_for('user.subscription'))
 
-logger = logging.getLogger(__name__)
-
+@login_required
 def subscription_success():
     """
     Handle successful subscription payment.
@@ -321,8 +321,6 @@ def subscription_success():
     
     # Process the successful payment
     try:
-        # Directly import and use our fixed implementation
-
         success = process_successful_payment(order_id)
         
         if success:
@@ -407,7 +405,7 @@ def transaction_details(transaction_id):
     plan_model = SubscriptionPlan()
     plan = None
     if transaction['planId']:
-        plan = plan_model.get_plan_by_id(transaction['planId'])
+        plan = plan_model.get_plan_by_id(str(transaction['planId']))
     
     # Format transaction for template
     formatted_tx = {
@@ -450,12 +448,44 @@ def download_receipt(transaction_id):
         flash('Receipt is only available for completed transactions', 'warning')
         return redirect(url_for('user.subscription'))
     
-    # Return receipt PDF (implementation depends on your receipt generation)
+    # Return receipt PDF or CSV (implementation depends on your receipt generation)
     try:
-        # Here you would generate or fetch the receipt
-        # For demonstration, we'll just show a message
-        flash('Receipt download functionality is not fully implemented yet', 'info')
-        return redirect(url_for('user.subscription'))
+        from flask import Response
+        import io
+        import csv
+        
+        # Create CSV receipt (placeholder implementation)
+        output = io.StringIO()
+        writer = csv.writer(output)
+        
+        # Add header
+        writer.writerow(['Receipt'])
+        writer.writerow(['Transaction ID', str(transaction['_id'])])
+        writer.writerow(['Date', transaction['createdAt'].strftime('%Y-%m-%d %H:%M') if isinstance(transaction['createdAt'], datetime) else 'Unknown'])
+        writer.writerow(['Amount', f"${transaction['amount']:.2f}"])
+        writer.writerow(['Status', transaction['status'].capitalize()])
+        writer.writerow(['Payment Method', transaction['paymentMethod'].capitalize()])
+        writer.writerow(['Payment ID', transaction.get('paymentId', 'N/A')])
+        
+        # Create response
+        response = Response(
+            output.getvalue(),
+            mimetype='text/csv',
+            headers={
+                'Content-Disposition': f'attachment; filename=receipt_{transaction_id}.csv'
+            }
+        )
+        
+        # Log download activity
+        activity_model = ActivityLog()
+        activity_model.log_activity(
+            user_id=session['user_id'],
+            activity_type='receipt-download',
+            details=f"Downloaded receipt for transaction {transaction_id}",
+            status='success'
+        )
+        
+        return response
     except Exception as e:
         logger.error(f"Error downloading receipt: {e}")
         flash('Error downloading receipt', 'danger')
@@ -476,7 +506,50 @@ def download_subscription_summary():
     transaction_model = Transaction()
     transactions = transaction_model.get_user_transactions(session['user_id'])
     
-    # In a real implementation, you would generate a PDF or CSV summary
-    # For now, we'll just redirect back with a message
-    flash('Subscription summary download will be implemented soon', 'info')
-    return redirect(url_for('user.subscription'))
+    # Generate CSV summary (placeholder implementation)
+    try:
+        from flask import Response
+        import io
+        import csv
+        
+        # Create CSV summary
+        output = io.StringIO()
+        writer = csv.writer(output)
+        
+        # Add header
+        writer.writerow(['Subscription Summary'])
+        writer.writerow(['Date', 'Transaction ID', 'Amount', 'Status', 'Payment Method'])
+        
+        # Add transaction data
+        for tx in transactions:
+            writer.writerow([
+                tx['createdAt'].strftime('%Y-%m-%d %H:%M') if isinstance(tx['createdAt'], datetime) else 'Unknown',
+                str(tx['_id']),
+                f"${tx['amount']:.2f}",
+                tx['status'].capitalize(),
+                tx['paymentMethod'].capitalize()
+            ])
+        
+        # Create response
+        response = Response(
+            output.getvalue(),
+            mimetype='text/csv',
+            headers={
+                'Content-Disposition': f'attachment; filename=subscription_summary.csv'
+            }
+        )
+        
+        # Log download activity
+        activity_model = ActivityLog()
+        activity_model.log_activity(
+            user_id=session['user_id'],
+            activity_type='summary-download',
+            details="Downloaded subscription summary",
+            status='success'
+        )
+        
+        return response
+    except Exception as e:
+        logger.error(f"Error downloading subscription summary: {e}")
+        flash('Subscription summary download will be implemented soon', 'info')
+        return redirect(url_for('user.subscription'))
