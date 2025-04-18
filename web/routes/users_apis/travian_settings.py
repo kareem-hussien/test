@@ -172,14 +172,14 @@ def travian_settings():
                 updated_user = user_model.get_user_by_id(session['user_id'])
                 
                 # Notify user that we're trying connection
-                flash('Verifying connection and extracting villages...', 'info')
+                flash('Verifying connection and extracting villages from your profile...', 'info')
                 
                 # Execute village extraction (which also verifies connection)
                 extraction_result = extract_villages_internal(session['user_id'])
                 
                 if extraction_result.get('success'):
                     villages_count = len(extraction_result.get('data', []))
-                    flash(f'Successfully extracted {villages_count} villages from your Travian account!', 'success')
+                    flash(f'Successfully extracted {villages_count} villages from your Travian profile!', 'success')
                     logger.info(f"Villages extracted for user '{user['username']}': {villages_count}")
                     
                     # Log successful connection
@@ -187,7 +187,7 @@ def travian_settings():
                     activity_model.log_activity(
                         user_id=session['user_id'],
                         activity_type='travian-connection',
-                        details='Successfully connected to Travian account and extracted villages',
+                        details='Successfully connected to Travian account and extracted villages from profile',
                         status='success',
                         data={
                             'villages_count': villages_count
@@ -195,7 +195,6 @@ def travian_settings():
                     )
                     
                     # Now check for Gold Club membership using the driver from the village extraction
-                    # The driver object is not directly accessible, so we need to add code to the extraction process
                     if 'gold_club_check' in extraction_result:
                         is_gold_member = extraction_result.get('gold_club_check', False)
                         

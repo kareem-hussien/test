@@ -1,71 +1,60 @@
 <!-- Travian Account Settings Card -->
-<div class="col-lg-8 mb-4">
-    <div class="dashboard-card">
-        <h4 class="mb-3">Travian Account Settings</h4>
-        <p class="text-muted mb-4">Connect your Travian account to enable automation features. Your credentials are securely stored and only used to access your Travian account.</p>
+<!-- Travian Account Settings Card -->
+<div class="col-lg-6 mb-4">
+    <div class="dashboard-card h-100">
+        <h5 class="mb-4">Travian Account Settings</h5>
         
-        <form action="{{ url_for('user.travian_settings') }}" method="POST">
+        <form action="{{ url_for('user.travian_settings') }}" method="post">
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             
             <div class="mb-3">
                 <label for="travian_username" class="form-label">Travian Username</label>
                 <div class="input-group">
                     <span class="input-group-text"><i class="bi bi-person"></i></span>
-                    <input type="text" class="form-control" id="travian_username" name="travian_username" 
-                           value="{{ user_profile.travian_credentials.username }}" 
-                           placeholder="Enter your Travian username">
+                    <input type="text" class="form-control" id="travian_username" name="travian_username" value="{{ user_profile.travian_credentials.username }}" required>
                 </div>
-                <small class="form-text text-muted">Your Travian account username</small>
+                <div class="form-text">Your Travian game username</div>
             </div>
             
             <div class="mb-3">
                 <label for="travian_password" class="form-label">Travian Password</label>
                 <div class="input-group">
                     <span class="input-group-text"><i class="bi bi-lock"></i></span>
-                    <input type="password" class="form-control" id="travian_password" name="travian_password" 
-                           value="{{ user_profile.travian_credentials.password }}" 
-                           placeholder="Enter your Travian password">
-                    <button class="btn btn-outline-secondary" type="button" id="togglePassword">
-                        <i class="bi bi-eye"></i>
-                    </button>
+                    <input type="password" class="form-control" id="travian_password" name="travian_password" value="{{ user_profile.travian_credentials.password }}" required>
                 </div>
-                <small class="form-text text-muted">Your Travian account password</small>
+                <div class="form-text">Your Travian game password</div>
             </div>
             
             <div class="mb-3">
-                <label for="travian_server" class="form-label">Travian Server</label>
+                <label for="travian_server" class="form-label">Travian Server URL</label>
                 <div class="input-group">
                     <span class="input-group-text"><i class="bi bi-globe"></i></span>
-                    <input type="text" class="form-control" id="travian_server" name="travian_server" 
-                           value="{{ user_profile.travian_credentials.server }}" 
-                           placeholder="e.g., https://ts1.x1.international.travian.com">
+                    <input type="text" class="form-control" id="travian_server" name="travian_server" value="{{ user_profile.travian_credentials.server }}" placeholder="e.g. https://ts1.x1.international.travian.com">
                 </div>
-                <small class="form-text text-muted">The URL of your Travian server</small>
+                <div class="form-text">The URL of your Travian server</div>
             </div>
             
-            <div class="mb-4">
-                <label for="travian_tribe" class="form-label">Your Tribe</label>
+            <div class="mb-3">
+                <label for="travian_tribe" class="form-label">Tribe</label>
                 <select class="form-select" id="travian_tribe" name="travian_tribe">
-                    <option value="" {% if not user_profile.travian_credentials.tribe %}selected{% endif %}>Select your tribe</option>
+                    <option value="" {% if not user_profile.travian_credentials.tribe %}selected{% endif %}>Select Tribe</option>
                     <option value="romans" {% if user_profile.travian_credentials.tribe == 'romans' %}selected{% endif %}>Romans</option>
                     <option value="gauls" {% if user_profile.travian_credentials.tribe == 'gauls' %}selected{% endif %}>Gauls</option>
                     <option value="teutons" {% if user_profile.travian_credentials.tribe == 'teutons' %}selected{% endif %}>Teutons</option>
                     <option value="egyptians" {% if user_profile.travian_credentials.tribe == 'egyptians' %}selected{% endif %}>Egyptians</option>
                     <option value="huns" {% if user_profile.travian_credentials.tribe == 'huns' %}selected{% endif %}>Huns</option>
                 </select>
-                <small class="form-text text-muted">Select your tribe for specialized troop training</small>
+                <div class="form-text">Your tribe in Travian</div>
             </div>
             
-            <div class="d-flex justify-content-between">
-                <button type="submit" class="btn btn-primary">
-                    <i class="bi bi-save me-2"></i>Save Settings
-                </button>
-                {% if user_profile.travian_credentials.username %}
-                <button type="button" class="btn btn-danger" data-bs-toggle="modal" data-bs-target="#disconnectModal">
-                    <i class="bi bi-power me-2"></i>Disconnect Account
-                </button>
-                {% endif %}
+            <div class="alert alert-info mb-3">
+                <i class="bi bi-info-circle-fill me-2"></i>
+                When you save your Travian settings, the system will automatically log into your account, visit your profile page, and extract your village information.
             </div>
+            
+            <button type="submit" class="btn btn-primary">
+                <i class="bi bi-save"></i> Save Settings
+            </button>
         </form>
     </div>
 </div>

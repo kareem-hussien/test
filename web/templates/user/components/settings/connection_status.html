@@ -1,78 +1,85 @@
-<!-- Connection Status -->
-<div class="col-lg-4 mb-4">
-    <div class="dashboard-card">
-        <h4 class="mb-4">Connection Status</h4>
-        
-        <!-- Gold Club Badge -->
-        {% if user_profile.is_gold_member %}
-        <div class="position-absolute top-0 end-0 m-3">
-            <span class="badge bg-warning text-dark p-2" data-bs-toggle="tooltip" title="Gold Club Member">
-                <i class="bi bi-stars me-1"></i> Gold Club
-            </span>
-        </div>
-        {% endif %}
-        
-        <div class="mb-3">
-            <label class="form-label">Last Connection</label>
-            <div class="d-flex align-items-center">
-                <i class="bi bi-clock me-2 text-muted"></i>
-                <span>{{ user_profile.last_connection }}</span>
+<!-- Connection Status Card -->
+<div class="col-lg-6 mb-4">
+    <div class="dashboard-card h-100">
+        <h5 class="mb-4">Connection Status</h5>
+        <div class="mb-4">
+            <div class="d-flex mb-3">
+                <div class="stat-icon bg-primary-light">
+                    <i class="bi bi-globe"></i>
+                </div>
+                <div class="ms-3">
+                    <h6 class="mb-1">Last Connection</h6>
+                    <p class="mb-0">{{ user_profile.last_connection }}</p>
+                </div>
+            </div>
+            <div class="d-flex mb-3">
+                <div class="stat-icon bg-{{ 'success' if user_profile.connection_verified else 'danger' }}-light">
+                    <i class="bi bi-{{ 'check-circle' if user_profile.connection_verified else 'x-circle' }}"></i>
+                </div>
+                <div class="ms-3">
+                    <h6 class="mb-1">Connection Status</h6>
+                    <p class="mb-0">{{ 'Verified' if user_profile.connection_verified else 'Not Verified' }}</p>
+                </div>
+            </div>
+            <div class="d-flex mb-3">
+                <div class="stat-icon bg-warning-light">
+                    <i class="bi bi-house"></i>
+                </div>
+                <div class="ms-3">
+                    <h6 class="mb-1">Villages Count</h6>
+                    <p class="mb-0">{{ user_profile.villages_count }} villages</p>
+                </div>
+            </div>
+            <div class="d-flex">
+                <div class="stat-icon bg-{{ 'warning' if user_profile.is_gold_member else 'secondary' }}-light">
+                    <i class="bi bi-star{{ '-fill' if user_profile.is_gold_member else '' }}"></i>
+                </div>
+                <div class="ms-3">
+                    <h6 class="mb-1">Gold Club Membership</h6>
+                    <p class="mb-0">{{ 'Active' if user_profile.is_gold_member else 'Inactive' }}</p>
+                </div>
             </div>
         </div>
         
-        <div class="mb-3">
-            <label class="form-label">Status</label>
-            <div class="d-flex align-items-center">
-                {% if user_profile.connection_verified %}
-                    <span class="badge bg-success me-2">Connected</span>
-                    <span>Your account is connected and working</span>
-                {% elif user_profile.travian_credentials.username and user_profile.travian_credentials.password %}
-                    <span class="badge bg-primary me-2">Ready</span>
-                    <span>Your credentials are set up</span>
-                {% else %}
-                    <span class="badge bg-warning me-2">Not Configured</span>
-                    <span>Please set up your Travian credentials</span>
-                {% endif %}
-            </div>
-        </div>
-        
-        {% if user_profile.connection_verified %}
-        <div class="alert alert-success mt-3">
-            <i class="bi bi-check-circle-fill me-2"></i>
-            <strong>Account connected!</strong> Last verified: {{ user_profile.last_connection }}
-            {% if user_profile.villages_count %}
-            <div class="mt-2">
-                <i class="bi bi-buildings me-2"></i>
-                <strong>{{ user_profile.villages_count }}</strong> {% if user_profile.villages_count == 1 %}village{% else %}villages{% endif %} detected in your account
-            </div>
-            {% endif %}
-        </div>
-        {% endif %}
-        
-        <!-- Gold Club Status Alert -->
-        {% if user_profile.connection_verified %}
-            {% if user_profile.is_gold_member %}
-            <div class="alert alert-warning mt-3">
-                <i class="bi bi-stars me-2"></i>
-                <strong>Gold Club Membership Confirmed!</strong> Enhanced features are available.
-            </div>
-            {% else %}
-            <div class="alert alert-secondary mt-3">
-                <i class="bi bi-info-circle-fill me-2"></i>
-                You are not a Gold Club member. Some premium features may be unavailable.
-            </div>
-            {% endif %}
-        {% endif %}
-        
-        <div class="alert alert-info mt-3">
-            <i class="bi bi-info-circle-fill me-2"></i>
-            <span>These settings are required for automation features like Auto Farm and Troop Training to work.</span>
-        </div>
-        
-        <div class="mt-4">
-            <a href="{{ url_for('user.villages') }}" class="btn btn-outline-primary">
-                <i class="bi bi-buildings me-2"></i>Manage Villages
+        <div class="d-flex mt-auto">
+            <a href="{{ url_for('user.villages') }}" class="btn btn-outline-primary me-2">
+                <i class="bi bi-house-door"></i> Manage Villages
             </a>
+            
+            <!-- Disconnect Account Button -->
+            {% if user_profile.travian_credentials.username and user_profile.connection_verified %}
+                <button type="button" class="btn btn-outline-danger" data-bs-toggle="modal" data-bs-target="#disconnectModal">
+                    <i class="bi bi-x-circle"></i> Disconnect Account
+                </button>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<!-- Disconnect Travian Account Modal -->
+<div class="modal fade" id="disconnectModal" tabindex="-1" aria-labelledby="disconnectModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="disconnectModalLabel">Disconnect Travian Account</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div class="alert alert-warning">
+                    <i class="bi bi-exclamation-triangle-fill me-2"></i>
+                    <strong>Warning:</strong> This will disconnect your Travian account and remove all your villages. This action cannot be undone.
+                </div>
+                <p>Are you sure you want to disconnect your Travian account?</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <form id="disconnectForm" action="{{ url_for('user.disconnect_travian') }}" method="post">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <button type="button" id="confirmDisconnect" class="btn btn-danger">
+                        <i class="bi bi-x-circle"></i> Disconnect Account
+                    </button>
+                </form>
+            </div>
         </div>
     </div>
 </div>

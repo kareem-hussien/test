@@ -207,7 +207,7 @@ function startVillageExtraction() {
         
         setTimeout(() => {
             progressBar.style.width = '60%';
-            statusText.textContent = 'Extracting village data...';
+            statusText.textContent = 'Extracting village data from profile page...';
             
             // Send AJAX request to extract villages
             console.log("Sending extract villages request");
@@ -241,7 +241,7 @@ function startVillageExtraction() {
                     const extractSuccessMessage = document.getElementById('extractSuccessMessage');
                     if (extractSuccessMessage) {
                         extractSuccessMessage.textContent = 
-                            `Successfully extracted ${data.data.length} villages.`;
+                            `Successfully extracted ${data.data.length} villages from your profile.`;
                     }
                     
                     // Populate villages list
@@ -252,13 +252,27 @@ function startVillageExtraction() {
                         data.data.forEach(village => {
                             const listItem = document.createElement('li');
                             listItem.className = 'list-group-item';
-                            listItem.textContent = `${village.name} (${village.x}|${village.y})`;
+                            // Format coordinates in a user-friendly way
+                            const coords = `(${village.x}|${village.y})`;
+                            // Add capital indicator if applicable
+                            const capitalBadge = village.is_capital ? 
+                                '<span class="badge bg-warning ms-2">Capital</span>' : '';
+                            listItem.innerHTML = `${village.name} ${coords} ${capitalBadge}`;
                             villagesList.appendChild(listItem);
                         });
                     }
                     
                     // Show Done button
                     if (doneBtn) doneBtn.classList.remove('d-none');
+                    
+                    // Check for Gold Club status if included in response
+                    if (data.gold_club_check === true) {
+                        // Optionally show Gold Club status message
+                        const goldClubMessage = document.createElement('div');
+                        goldClubMessage.className = 'alert alert-success mt-3';
+                        goldClubMessage.innerHTML = '<i class="bi bi-star-fill me-2"></i> Gold Club membership detected!';
+                        resultsElement.appendChild(goldClubMessage);
+                    }
                     
                     // Refresh the page data after delay
                     setTimeout(() => {

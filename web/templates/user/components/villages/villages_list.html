@@ -1,114 +1,113 @@
-<!-- Villages List Component with Loading State -->
-<div class="row mb-4">
-    <div class="col-12">
-        <div class="dashboard-card">
-            <h4 class="mb-3">Your Villages</h4>
-            
-            <div id="villagesLoading" class="d-none">
-                <div class="text-center p-4">
-                    <div class="spinner-border text-primary mb-3" role="status">
-                        <span class="visually-hidden">Loading...</span>
-                    </div>
-                    <p>Extracting villages from your Travian account...</p>
-                </div>
-            </div>
-            
-            <div id="villagesList">
-                {% if villages and villages|length > 0 %}
-                    <div class="table-responsive">
-                        <table class="table table-hover">
-                            <thead>
-                                <tr>
-                                    <th>Village Name</th>
-                                    <th>Coordinates</th>
-                                    <th>Population</th>
-                                    <th>Status</th>
-                                    <th>Actions</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {% for village in villages %}
-                                <tr>
-                                    <td>
-                                        <div class="d-flex align-items-center">
-                                            <img src="{{ url_for('static', filename='img/icon/village-icon.png') }}" 
-                                                alt="Village" width="24" height="24" class="me-2">
-                                            <span>{{ village.name }}</span>
-                                        </div>
-                                    </td>
-                                    <td>({{ village.x }}|{{ village.y }})</td>
-                                    <td>{{ village.population|default('Unknown') }}</td>
-                                    <td>
-                                        <span class="badge {% if village.status == 'active' %}bg-success{% else %}bg-secondary{% endif %}">
-                                            {{ village.status|default('active')|capitalize }}
-                                        </span>
-                                    </td>
-                                    <td>
-                                        <div class="btn-group btn-group-sm">
-                                            <button type="button" class="btn btn-outline-primary village-details" 
-                                                    data-village-id="{{ village.newdid }}" data-bs-toggle="modal" 
-                                                    data-bs-target="#villageDetailsModal">
-                                                <i class="bi bi-eye"></i>
-                                            </button>
-                                            <button type="button" class="btn btn-outline-warning village-edit" 
-                                                    data-village-id="{{ village.newdid }}" data-bs-toggle="modal" 
-                                                    data-bs-target="#editVillageModal">
-                                                <i class="bi bi-pencil"></i>
-                                            </button>
-                                            <button type="button" class="btn btn-outline-danger village-remove" 
-                                                    data-village-id="{{ village.newdid }}" data-village-name="{{ village.name }}">
-                                                <i class="bi bi-x-circle"></i>
-                                            </button>
-                                        </div>
-                                    </td>
-                                </tr>
-                                {% endfor %}
-                            </tbody>
-                        </table>
-                    </div>
-                {% else %}
-                    <div class="alert alert-info">
-                        <i class="bi bi-info-circle-fill me-2"></i>
-                        No villages found. Click the "Extract Villages" button to fetch your villages from Travian.
-                    </div>
-                {% endif %}
-            </div>
-            
-            <div class="mt-3 d-flex justify-content-between">
-                <button type="button" class="btn btn-outline-primary" data-bs-toggle="modal" data-bs-target="#addVillageModal">
-                    <i class="bi bi-plus-circle me-2"></i>Add Village Manually
-                </button>
-                
-                <button type="button" class="btn btn-outline-primary" id="extractVillages">
-                    <i class="bi bi-arrow-repeat me-2"></i>Extract Villages
-                </button>
-            </div>
+<!-- Villages List Section -->
+<div class="dashboard-card mb-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h4 class="mb-0">Your Villages</h4>
+        <div>
+            <button type="button" class="btn btn-outline-primary me-2" data-bs-toggle="modal" data-bs-target="#addVillageModal">
+                <i class="bi bi-plus-lg"></i> Add Village
+            </button>
+            <button type="button" class="btn btn-primary" id="refreshVillages">
+                <i class="bi bi-arrow-repeat"></i> Refresh
+            </button>
         </div>
     </div>
+    
+    <!-- Villages automation settings -->
+    <div class="mb-4">
+        <form id="villageSettingsForm">
+            <div class="row">
+                <div class="col-md-6 mb-3">
+                    <label for="autoFarmVillages" class="form-label">Auto Farm Villages:</label>
+                    <select class="form-select" id="autoFarmVillages" multiple size="5">
+                        {% for village in villages %}
+                        <option value="{{ village.newdid }}" {% if village.auto_farm_enabled %}selected{% endif %}>
+                            {{ village.name }} ({{ village.x }}|{{ village.y }}) - Pop: {{ village.population }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                    <div class="form-text">Hold Ctrl/Cmd to select multiple villages</div>
+                </div>
+                <div class="col-md-6 mb-3">
+                    <label for="trainingVillages" class="form-label">Training Villages:</label>
+                    <select class="form-select" id="trainingVillages" multiple size="5">
+                        {% for village in villages %}
+                        <option value="{{ village.newdid }}" {% if village.training_enabled %}selected{% endif %}>
+                            {{ village.name }} ({{ village.x }}|{{ village.y }}) - Pop: {{ village.population }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                    <div class="form-text">Hold Ctrl/Cmd to select multiple villages</div>
+                </div>
+            </div>
+            <button type="submit" class="btn btn-success">
+                <i class="bi bi-save"></i> Save Automation Settings
+            </button>
+        </form>
+    </div>
+    
+    <!-- Villages List -->
+    {% if villages %}
+    <div class="table-responsive">
+        <table class="table table-hover">
+            <thead>
+                <tr>
+                    <th>Village Name</th>
+                    <th>Coordinates</th>
+                    <th>Population</th>
+                    <th>Status</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for village in villages %}
+                <tr>
+                    <td>
+                        <strong>{{ village.name }}</strong>
+                        {% if village.is_capital %}
+                        <span class="badge bg-warning ms-1">Capital</span>
+                        {% endif %}
+                    </td>
+                    <td>({{ village.x }}|{{ village.y }})</td>
+                    <td>{{ village.population }}</td>
+                    <td>
+                        <div class="d-flex align-items-center">
+                            <span class="status-{% if village.status == 'active' %}active{% else %}stopped{% endif %}" title="{{ village.status|capitalize }}"></span>
+                            <div class="ms-2">
+                                {% if village.auto_farm_enabled %}
+                                <span class="badge bg-success me-1" title="Auto Farm Enabled">
+                                    <i class="bi bi-tractor"></i>
+                                </span>
+                                {% endif %}
+                                {% if village.training_enabled %}
+                                <span class="badge bg-primary" title="Training Enabled">
+                                    <i class="bi bi-shield"></i>
+                                </span>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </td>
+                    <td>
+                        <div class="btn-group btn-group-sm">
+                            <button type="button" class="btn btn-outline-primary village-details" data-village-id="{{ village.newdid }}" title="View Details">
+                                <i class="bi bi-eye"></i>
+                            </button>
+                            <button type="button" class="btn btn-outline-secondary village-edit" data-village-id="{{ village.newdid }}" title="Edit Village">
+                                <i class="bi bi-pencil"></i>
+                            </button>
+                            <button type="button" class="btn btn-outline-danger village-remove" data-village-id="{{ village.newdid }}" data-village-name="{{ village.name }}" title="Remove Village">
+                                <i class="bi bi-trash"></i>
+                            </button>
+                        </div>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <div class="alert alert-info">
+        <i class="bi bi-info-circle-fill me-2"></i>
+        No villages found. Click the "Extract Villages" button to get your villages from your Travian account.
+    </div>
+    {% endif %}
 </div>
-
-<!-- JavaScript for village loading management -->
-<script>
-    // Function to show loading state when extracting villages
-    function showVillagesLoading() {
-        document.getElementById('villagesLoading').classList.remove('d-none');
-        document.getElementById('villagesList').classList.add('d-none');
-    }
-    
-    // Function to hide loading state
-    function hideVillagesLoading() {
-        document.getElementById('villagesLoading').classList.add('d-none');
-        document.getElementById('villagesList').classList.remove('d-none');
-    }
-    
-    // This will be called by the extract villages button
-    document.addEventListener('DOMContentLoaded', function() {
-        const extractButton = document.getElementById('extractVillages');
-        if (extractButton) {
-            extractButton.addEventListener('click', function() {
-                showVillagesLoading();
-                // The actual extraction code is in villages.js
-            });
-        }
-    });
-</script>

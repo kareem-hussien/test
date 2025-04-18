@@ -1,29 +1,33 @@
-<!-- Extract Villages Modal - FIXED VERSION -->
+<!-- Extract Villages Modal -->
 <div class="modal fade" id="extractVillagesModal" tabindex="-1" aria-labelledby="extractVillagesModalLabel" aria-hidden="true">
     <div class="modal-dialog">
         <div class="modal-content">
             <div class="modal-header">
-                <h5 class="modal-title" id="extractVillagesModalLabel">Extract Villages from Travian</h5>
+                <h5 class="modal-title" id="extractVillagesModalLabel">Extract Villages</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <div class="modal-body">
-                <div class="alert alert-info mb-3">
+                <p>This tool will extract your villages from your Travian account by visiting your profile page.</p>
+                
+                <div class="alert alert-info">
                     <i class="bi bi-info-circle-fill me-2"></i>
-                    This will log into your Travian account and extract all your villages. Make sure your Travian credentials are correctly set in your <a href="/dashboard/travian-settings">Travian Settings</a>.
+                    Your Travian credentials will be used to log in to your account automatically. Make sure your credentials are correct in Travian Settings.
                 </div>
                 
+                <!-- Initial content -->
+                <div class="mb-3">
+                    <p>Click "Extract Villages" to start the process. This may take a few moments.</p>
+                </div>
+                
+                <!-- Progress Indicator (initially hidden) -->
                 <div id="extractProgress" class="d-none">
-                    <div class="text-center mb-3">
-                        <div class="spinner-border text-primary" role="status">
-                            <span class="visually-hidden">Loading...</span>
-                        </div>
-                    </div>
                     <div class="progress mb-3">
                         <div class="progress-bar progress-bar-striped progress-bar-animated" role="progressbar" style="width: 0%"></div>
                     </div>
-                    <div id="extractStatus" class="text-center mb-3">Preparing to extract villages...</div>
+                    <p id="extractStatus" class="text-center">Preparing extraction...</p>
                 </div>
                 
+                <!-- Results (initially hidden) -->
                 <div id="extractResults" class="d-none">
                     <div class="alert alert-success">
                         <i class="bi bi-check-circle-fill me-2"></i>
@@ -31,20 +35,26 @@
                     </div>
                     
                     <h6>Extracted Villages:</h6>
-                    <ul id="extractedVillagesList" class="list-group mb-3"></ul>
+                    <ul id="extractedVillagesList" class="list-group mb-3">
+                        <!-- Villages will be populated here -->
+                    </ul>
                 </div>
                 
+                <!-- Error Message (initially hidden) -->
                 <div id="extractError" class="d-none">
                     <div class="alert alert-danger">
                         <i class="bi bi-exclamation-triangle-fill me-2"></i>
-                        <span id="extractErrorMessage">An error occurred.</span>
+                        <span id="extractErrorMessage">An error occurred during extraction.</span>
                     </div>
                 </div>
             </div>
             <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal" id="extractCancelBtn">Cancel</button>
-                <button type="button" class="btn btn-primary" id="confirmExtractBtn">Start Extraction</button>
-                <button type="button" class="btn btn-success d-none" data-bs-dismiss="modal" id="extractDoneBtn">Done</button>
+                <!-- Initial buttons -->
+                <button type="button" class="btn btn-secondary" id="extractCancelBtn" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" id="confirmExtractBtn">Extract Villages</button>
+                
+                <!-- "Done" button (initially hidden) -->
+                <button type="button" class="btn btn-success d-none" id="extractDoneBtn" data-bs-dismiss="modal">Done</button>
             </div>
         </div>
     </div>

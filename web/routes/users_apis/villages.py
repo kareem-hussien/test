@@ -72,6 +72,7 @@ def extract_villages_internal(user_id):
             from selenium.webdriver.common.by import By
             from selenium.webdriver.support.ui import WebDriverWait
             from selenium.webdriver.support import expected_conditions as EC
+            import re
             
             logger.info("Successfully imported required Selenium modules")
         except ImportError as e:
@@ -232,29 +233,109 @@ def extract_villages_internal(user_id):
                 'message': f'Error during login: {str(e)}'
             }
         
-        # Extract villages
+        # Navigate to the profile page where villages are listed
         try:
-            logger.info("Running village extraction")
-            from tasks.villages import run_villages
+            logger.info("Navigating to profile page to extract villages")
+            driver.get(f"{travian_server}/profile")
+            time.sleep(3)  # Wait for the page to load
             
-            extracted_villages = run_villages(driver)
+            # Find the villages table
+            villages_table = WebDriverWait(driver, 10).until(
+                EC.presence_of_element_located((By.CSS_SELECTOR, "table.villages.borderGap"))
+            )
+            
+            # Extract villages data
+            village_rows = villages_table.find_elements(By.CSS_SELECTOR, "tbody tr")
+            
+            extracted_villages = []
+            for row in village_rows:
+                # Extract village name
+                name_cell = row.find_element(By.CSS_SELECTOR, "td.name")
+                name_link = name_cell.find_element(By.TAG_NAME, "a")
+                village_name = name_link.text.strip()
+                
+                # Extract village ID (newdid) from the link href
+                village_link = name_link.get_attribute("href")
+                village_id_match = re.search(r"d=(\d+)", village_link)
+                village_id = village_id_match.group(1) if village_id_match else None
+                
+                # Extract population
+                population_cell = row.find_element(By.CSS_SELECTOR, "td.inhabitants")
+                population = int(population_cell.text.strip())
+                
+                # Extract coordinates
+                coords_cell = row.find_element(By.CSS_SELECTOR, "td.coordinates")
+                coords_text = coords_cell.text.strip()
+                
+                # Parse coordinates using regex to handle different formats
+                coords_pattern = r"[\(\[]?\s*([-−]?\s*\d+)\s*[|,]\s*([-−]?\s*\d+)\s*[\)\]]?"
+                coords_match = re.search(coords_pattern, coords_text)
+                
+                if coords_match:
+                    # Handle negative signs from different character sets (standard and unicode minus)
+                    x_coord = coords_match.group(1).replace('−', '-').replace(' ', '')
+                    y_coord = coords_match.group(2).replace('−', '-').replace(' ', '')
+                    
+                    # Convert to integer
+                    try:
+                        x = int(x_coord)
+                        y = int(y_coord)
+                    except ValueError:
+                        # Fallback if conversion fails
+                        x = 0
+                        y = 0
+                else:
+                    # Fallback if regex doesn't match
+                    x = 0
+                    y = 0
+                
+                # Check if it's a capital village
+                is_capital = "Capital" in name_cell.text if name_cell.text else False
+                
+                # Create village data structure
+                village_data = {
+                    'name': village_name,
+                    'newdid': village_id,
+                    'x': x,
+                    'y': y,
+                    'population': population,
+                    'is_capital': is_capital,
+                    'status': 'active',
+                    'resources': {
+                        'wood': 0,
+                        'clay': 0,
+                        'iron': 0,
+                        'crop': 0
+                    }
+                }
+                
+                extracted_villages.append(village_data)
             
             if not extracted_villages:
-                logger.error("No villages were extracted")
+                logger.error("No villages were extracted from the profile page")
                 if driver:
                     driver.quit()
                 return {
                     'success': False,
-                    'message': 'No villages were extracted. Please try again.'
+                    'message': 'No villages were found on the profile page. Please try again.'
                 }
             
             logger.info(f"Successfully extracted {len(extracted_villages)} villages")
             for idx, village in enumerate(extracted_villages):
                 logger.info(f"Village {idx+1}: {village['name']} ({village['x']}|{village['y']})")
-                
-            # Check for Gold Club membership
+            
+            # Check for Gold Club membership (can be done on the profile page too)
             logger.info("Checking Gold Club membership")
-            is_gold_member = check_gold_club_membership(driver)
+            is_gold_member = False
+            try:
+                # Look for Gold Club indicators on the profile page
+                gold_elements = driver.find_elements(By.XPATH, "//*[contains(text(), 'Gold Club') or contains(@class, 'gold')]")
+                is_gold_member = len(gold_elements) > 0
+            except:
+                # Fallback to existing method if needed
+                from web.utils.gold_club import check_gold_club_membership
+                is_gold_member = check_gold_club_membership(driver)
+                
             logger.info(f"Gold Club membership status: {is_gold_member}")
             
         except Exception as e:

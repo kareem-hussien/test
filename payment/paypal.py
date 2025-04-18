@@ -1,6 +1,6 @@
 """
 Fixed PayPal integration for Travian Whispers subscription payments.
-This module fixes the decimal precision issue in the PayPal order creation.
+This module fixes the datetime comparison issue in the payment processing function.
 """
 import logging
 import json
@@ -267,6 +267,7 @@ def create_subscription_order(plan_id, user_id, success_url, cancel_url, billing
 def process_successful_payment(order_id):
     """
     Process a successful payment and update user subscription.
+    Retrieves all necessary data using just the order_id.
     
     Args:
         order_id (str): PayPal order ID
@@ -325,9 +326,23 @@ def process_successful_payment(order_id):
         start_date = datetime.utcnow()
         
         # If user already has active subscription, extend it from current end date
-        if user['subscription']['status'] == 'active' and user['subscription'].get('endDate') and user['subscription']['endDate'] > start_date:
-            # Extend existing subscription
-            start_date = user['subscription']['endDate']
+        if user['subscription']['status'] == 'active' and user['subscription'].get('endDate'):
+            # Ensure both datetimes are timezone-naive for comparison
+            end_date = user['subscription']['endDate']
+            
+            # Handle timezone-aware vs timezone-naive comparison
+            if hasattr(end_date, 'tzinfo') and end_date.tzinfo and not start_date.tzinfo:
+                # Make end_date timezone-naive by removing tzinfo
+                end_date = end_date.replace(tzinfo=None)
+            
+            # If start_date has timezone info but end_date doesn't
+            elif hasattr(start_date, 'tzinfo') and start_date.tzinfo and not (hasattr(end_date, 'tzinfo') and end_date.tzinfo):
+                # Make start_date timezone-naive
+                start_date = start_date.replace(tzinfo=None)
+                
+            # Now compare and use the later date
+            if end_date > start_date:
+                start_date = end_date
         
         # Calculate end date based on billing period
         if billing_period == 'yearly':
@@ -442,4 +457,52 @@ def process_successful_payment(order_id):
             
     except Exception as e:
         logger.error(f"Error processing payment: {str(e)}", exc_info=True)
+        return False
+
+def verify_webhook_signature(request_body, headers):
+    """
+    Verify webhook signature from PayPal.
+    
+    Args:
+        request_body (bytes): Raw request body
+        headers (dict): Request headers
+        
+    Returns:
+        bool: True if signature is valid, False otherwise
+    """
+    # Add implementation for webhook signature verification
+    # For now return True as placeholder
+    return True
+
+def handle_webhook_event(event_type, event_data):
+    """
+    Handle PayPal webhook event.
+    
+    Args:
+        event_type (str): Event type
+        event_data (dict): Event data
+        
+    Returns:
+        bool: True if handled successfully, False otherwise
+    """
+    logger.info(f"Processing PayPal webhook event: {event_type}")
+    
+    try:
+        # Handle different event types
+        if event_type == 'PAYMENT.CAPTURE.COMPLETED':
+            # Process completed payment
+            order_id = event_data.get('resource', {}).get('id')
+            if order_id:
+                return process_successful_payment(order_id)
+            else:
+                logger.error("Missing order ID in webhook event data")
+                return False
+        
+        # Add handlers for other event types as needed
+        
+        # Default: log event but take no action
+        logger.info(f"No specific handler for event type: {event_type}")
+        return True
+    except Exception as e:
+        logger.error(f"Error handling webhook event: {e}")
         return False

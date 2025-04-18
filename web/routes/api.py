@@ -464,54 +464,90 @@ def cancel_subscription():
     
     return redirect(url_for('user.subscription'))
 
-def update_subscription_status(self, user_id, status):
-    """
-    Update user subscription status.
+def update_transaction_status(transaction_id, status):
+    """API endpoint to update transaction status."""
+    # Get transaction details
+    transaction_model = Transaction()
+    tx = transaction_model.get_transaction(transaction_id)
     
-    Args:
-        user_id (str): User ID
-        status (str): New subscription status ('active', 'inactive', 'cancelled')
+    if not tx:
+        return jsonify({
+            'success': False,
+            'message': 'Transaction not found'
+        }), 404
+    
+    # Check if status is valid
+    valid_statuses = ['pending', 'completed', 'failed', 'refunded']
+    if status not in valid_statuses:
+        return jsonify({
+            'success': False,
+            'message': f'Invalid status: {status}'
+        }), 400
+    
+    # Check current status
+    if tx['status'] == status:
+        return jsonify({
+            'success': True,
+            'message': f'Transaction already has status: {status}'
+        })
+    
+    # Special handling for 'completed' status
+    if status == 'completed' and tx['status'] == 'pending':
+        # Process the completed payment
+        from payment.paypal import process_successful_payment
         
-    Returns:
-        bool: True if successful, False otherwise
-    """
-    try:
-        if self.collection is None:
-            logger.error("Database connection not available")
-            return False
+        # Call process_successful_payment with only the paymentId
+        process_result = process_successful_payment(tx["paymentId"])
         
-        # Validate status
-        valid_statuses = ['active', 'inactive', 'cancelled']
-        if status not in valid_statuses:
-            logger.error(f"Invalid subscription status: {status}")
-            return False
+        if process_result:
+            logger.info(f"Successfully processed payment for transaction {transaction_id}")
+            
+            return jsonify({
+                'success': True,
+                'message': 'Transaction status updated and payment processed successfully'
+            })
+        else:
+            logger.error(f"Failed to process payment for transaction {transaction_id}")
+            
+            return jsonify({
+                'success': False,
+                'message': 'Failed to process payment'
+            }), 500
+    
+    # For change from 'completed' to something else - handle subscription accordingly
+    if tx['status'] == 'completed' and status != 'completed':
+        # Get user model and update subscription status
+        user_model = User()
         
-        # Get current user data to preserve other subscription fields
-        user = self.get_user_by_id(user_id)
-        if not user:
-            logger.error(f"User not found: {user_id}")
-            return False
+        # Update subscription status to inactive
+        user_model.update_subscription_status(str(tx["userId"]), "inactive")
         
-        # Update subscription status
-        subscription_data = {
-            'subscription.status': status,
-            'updatedAt': datetime.utcnow()
-        }
-        
-        result = self.collection.update_one(
-            {'_id': ObjectId(user_id)},
-            {'$set': subscription_data}
+        logger.info(f"Updated subscription status to inactive for user {tx['userId']}")
+    
+    # Update transaction status
+    if transaction_model.update_transaction_status(transaction_id, status):
+        # Log the activity
+        activity_model = ActivityLog()
+        activity_model.log_activity(
+            user_id=str(tx['userId']),
+            activity_type='transaction-status-update',
+            details=f"Transaction status updated from {tx['status']} to {status}",
+            status='success'
         )
         
-        if result.modified_count > 0:
-            logger.info(f"Updated subscription status to {status} for user {user_id}")
-            return True
-        else:
-            logger.warning(f"No changes made when updating subscription status for user {user_id}")
-            return False
-    except Exception as e:
-        logger.error(f"Error updating subscription status: {e}")
-        return False
+        logger.info(f"Transaction {transaction_id} status updated from {tx['status']} to {status}")
+        
+        return jsonify({
+            'success': True,
+            'message': 'Transaction status updated successfully'
+        })
+    else:
+        logger.error(f"Failed to update transaction status for {transaction_id}")
+        
+        return jsonify({
+            'success': False,
+            'message': 'Failed to update transaction status'
+        }), 500
 
 @api_bp.route('/subscription/process-payment', methods=['POST'])
 @api_error_handler
