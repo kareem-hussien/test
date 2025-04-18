@@ -77,3 +77,14 @@ document.addEventListener('DOMContentLoaded', function() {
         return new bootstrap.Tooltip(tooltipTriggerEl);
     });
 });
+
+// Handle disconnect confirmation
+document.addEventListener('DOMContentLoaded', function() {
+    // Handle disconnect confirmation
+    const confirmDisconnectBtn = document.getElementById('confirmDisconnect');
+    if (confirmDisconnectBtn) {
+        confirmDisconnectBtn.addEventListener('click', function() {
+            document.getElementById('disconnectForm').submit();
+        });
+    }
+});

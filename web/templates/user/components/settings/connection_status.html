@@ -35,45 +35,7 @@
                 {% endif %}
             </div>
         </div>
-
-        <!-- Disconnect Account button -->
-        <div class="mt-3">
-            {% if user_profile.travian_credentials.username %}
-            <form action="{{ url_for('user.disconnect_travian') }}" method="post" id="disconnectForm">
-                {% if csrf_token %}
-                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                {% endif %}
-                <button type="button" class="btn btn-danger" data-bs-toggle="modal" data-bs-target="#disconnectModal">
-                    <i class="bi bi-x-circle me-2"></i>Disconnect Account
-                </button>
-            </form>
-            {% endif %}
-        </div>
-
-        <!-- Disconnect Confirmation Modal -->
-        <div class="modal fade" id="disconnectModal" tabindex="-1" aria-labelledby="disconnectModalLabel" aria-hidden="true">
-            <div class="modal-dialog">
-                <div class="modal-content">
-                    <div class="modal-header bg-danger text-white">
-                        <h5 class="modal-title" id="disconnectModalLabel">Disconnect Travian Account</h5>
-                        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
-                    </div>
-                    <div class="modal-body">
-                        <p>Are you sure you want to disconnect your Travian account?</p>
-                        <div class="alert alert-warning">
-                            <i class="bi bi-exclamation-triangle-fill me-2"></i>
-                            <strong>Warning:</strong> This will remove all your Travian credentials and village data from our system. You'll need to set up your account again to use automation features.
-                        </div>
-                    </div>
-                    <div class="modal-footer">
-                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                        <button type="button" class="btn btn-danger" id="confirmDisconnect">Disconnect</button>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-      
+        
         {% if user_profile.connection_verified %}
         <div class="alert alert-success mt-3">
             <i class="bi bi-check-circle-fill me-2"></i>

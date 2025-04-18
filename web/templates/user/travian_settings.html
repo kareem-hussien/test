@@ -26,15 +26,4 @@
 {% block scripts %}
 <script src="{{ url_for('static', filename='js/user/travian_settings.js') }}"></script>
 <!-- Add this to the scripts block -->
-<script>
-    document.addEventListener('DOMContentLoaded', function() {
-        // Handle disconnect confirmation
-        const confirmDisconnectBtn = document.getElementById('confirmDisconnect');
-        if (confirmDisconnectBtn) {
-            confirmDisconnectBtn.addEventListener('click', function() {
-                document.getElementById('disconnectForm').submit();
-            });
-        }
-    });
-</script>
 {% endblock %}

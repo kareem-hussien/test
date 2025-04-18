@@ -27,6 +27,7 @@ def register_routes(user_bp):
     user_bp.route('/disconnect-travian', methods=['POST'])(login_required(disconnect_travian))
 
 
+
 def is_travian_account_registered(username, server, exclude_user_id=None):
     """
     Check if a Travian account is already registered by another user.
@@ -321,8 +322,8 @@ def disconnect_travian():
     
     # Update user in database
     if user_model.update_user(session['user_id'], {'travianCredentials': empty_credentials}):
-        # Also clear villages
-        user_model.update_villages(session['user_id'], [])
+        # Clear villages - correct approach
+        user_model.update_user(session['user_id'], {'villages': []})
         
         # Log the activity
         activity_model = ActivityLog()
